@@ -20,6 +20,9 @@ jobs:
             version: v2.0
 
     tests:
+      defaults:
+        run:
+          shell: bash
       runs-on:  ${{ matrix.runner }}
       strategy:
         fail-fast: false
