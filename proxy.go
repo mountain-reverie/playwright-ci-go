@@ -34,8 +34,10 @@ func transparentProxy() (string, int, func()) {
 	}()
 
 	split := strings.Split(l.Addr().String(), ":")
-	port, _ := strconv.ParseInt(split[1], 10, 64)
-
+	port, err := strconv.ParseInt(split[1], 10, 64)
+	if err != nil {
+		log.Fatalf("Failed to parse port number from address %s: %v", l.Addr().String(), err)
+	}
 	if err := wait4port("http://" + l.Addr().String()); err != nil {
 		log.Fatalf("Could not connect to proxy: %s", err)
 	}
