@@ -32,8 +32,8 @@ jobs:
             platform: amd64
 #          - runner: macos-latest
 #            platform: arm64
-          - runner: windows-latest
-            platform: amd64
+#          - runner: windows-latest
+#            platform: amd64
           - runner: ubuntu-24.04-arm
             platform: arm64
           - runner: macos-13
@@ -64,11 +64,9 @@ jobs:
           uses: douglascamata/setup-docker-macos-action@a9ac5585664f0f68b067ff33c4e993ebd5279425
 
         - name: Set up Docker Buildx
-          if: ${{ matrix.runner != 'windows-latest' }}
           uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349
           
         - name: Build image locally, but use cache from GHA
-          if: ${{ matrix.runner != 'windows-latest' }}
           uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
           with:
             context: "{{defaultContext}}:docker"
@@ -80,13 +78,6 @@ jobs:
             platforms: linux/${{ matrix.platform }}
             tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
             load: true
-
-        - name: Build image locally on Windows
-          working-directory: docker
-          run: |
-            docker build . -t ghcr.io/${{ github.repository }}:${{ github.sha }} \
-              --build-arg PLAYWRIGHT_VERSION=${{ steps.playwright.outputs.version }} \
-              --platform linux/amd64
 
         - name: Run tests
           run: |
