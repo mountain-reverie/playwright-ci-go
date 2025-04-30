@@ -85,7 +85,8 @@ jobs:
           working-directory: docker
           run: |
             docker build . -t ghcr.io/${{ github.repository }}:${{ github.sha }} \
-              --build-arg PLAYWRIGHT_VERSION=${{ steps.playwright.outputs.version }}
+              --build-arg PLAYWRIGHT_VERSION=${{ steps.playwright.outputs.version }} \
+              --platform linux/amd64
 
         - name: Run tests
           run: |
