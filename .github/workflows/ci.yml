@@ -64,6 +64,7 @@ jobs:
           uses: douglascamata/setup-docker-macos-action@a9ac5585664f0f68b067ff33c4e993ebd5279425
 
         - name: Set up Docker Buildx
+          if: ${{ matrix.runner != 'windows-latest' }}
           uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349
           
         - name: Build image locally, but use cache from GHA
