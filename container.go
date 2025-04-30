@@ -61,6 +61,7 @@ func new(version string, opts ...Option) (*container, error) {
 
 	browsers, err := testcontainers.GenericContainer(ctx, genericContainerReq)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("could not start browser container: %w", err)
 	}
 

@@ -30,7 +30,10 @@ func transparentProxy() (string, int, func()) {
 	}
 
 	go func() {
-		srv.Serve(l)
+		err := srv.Serve(l)
+		if err != nil {
+			log.Fatalf("Error serving proxy: %v", err)
+		}
 	}()
 
 	split := strings.Split(l.Addr().String(), ":")
@@ -43,8 +46,8 @@ func transparentProxy() (string, int, func()) {
 	}
 
 	return "http://" + testcontainers.HostInternal + ":" + split[1], int(port), func() {
-		srv.Shutdown(context.Background())
-		l.Close()
+		_ = srv.Shutdown(context.Background())
+		_ = l.Close()
 	}
 }
 

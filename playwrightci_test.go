@@ -29,7 +29,7 @@ func Test_HelloWorld(t *testing.T) {
 	base := "http://" + l.Addr().String()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World!"))
+		_, _ = w.Write([]byte("Hello World!"))
 	})
 
 	go func() {
@@ -68,7 +68,9 @@ func Test_HelloWorld(t *testing.T) {
 
 			testresult := filepath.Join("testdata", "failed", fmt.Sprintf("screenshot-%s.png", test.browser))
 
-			page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateLoad})
+			err = page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateLoad})
+			assert.NoError(t, err)
+
 			_, err = page.Screenshot(playwright.PageScreenshotOptions{
 				Path: playwright.String(testresult),
 			})
@@ -80,7 +82,8 @@ func Test_HelloWorld(t *testing.T) {
 			require.Equal(t, expectedSize, actualSize)
 			assert.Equal(t, expectedPixels, actualPixels)
 			if !t.Failed() {
-				os.Remove(testresult)
+				err = os.Remove(testresult)
+				assert.NoError(t, err)
 			}
 
 			err = page.Close()
@@ -112,17 +115,17 @@ func TestMain(m *testing.M) {
 func pixels(t *testing.T, path string) (image.Rectangle, []uint8) {
 	f, err := os.Open(path)
 	assert.NoError(t, err)
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	raw, _, err := image.Decode(f)
 	assert.NoError(t, err)
 
 	var pixels []uint8
-	switch raw.(type) {
+	switch raw := raw.(type) {
 	case *image.RGBA:
-		pixels = raw.(*image.RGBA).Pix
+		pixels = raw.Pix
 	case *image.NRGBA:
-		pixels = raw.(*image.NRGBA).Pix
+		pixels = raw.Pix
 	default:
 		t.Fatalf("unsupported image type: %T", raw)
 	}
