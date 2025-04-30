@@ -60,7 +60,7 @@ jobs:
             echo "version="$(go run github.com/playwright-community/playwright-go/cmd/playwright@$PLAYWRIGHT_GO_VERSION --version |cut -d " " -f 2) >> "$GITHUB_OUTPUT"
 
         - name: Install Docker
-          if: ${{ runner.os == 'macos-13' }}
+          if: ${{ matrix.runner == 'macos-13' }}
           uses: douglascamata/setup-docker-macos-action@a9ac5585664f0f68b067ff33c4e993ebd5279425
 
         - name: Set up Docker Buildx
