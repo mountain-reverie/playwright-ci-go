@@ -2,6 +2,7 @@ package playwrightcigo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -31,7 +32,7 @@ func transparentProxy() (string, int, func()) {
 
 	go func() {
 		err := srv.Serve(l)
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Error serving proxy: %v", err)
 		}
 	}()
