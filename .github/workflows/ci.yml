@@ -83,7 +83,7 @@ jobs:
             push: false
             file: "Dockerfile"
             cache-from: type=gha,scope=${{ matrix.platform }}
-            cache-to: ${{ matrix.runner != 'macos-13' && 'type=gha,mode=max,scope=' + matrix.platform || 'type=local' }}
+            cache-to: ${{ steps.cache.outputs.cache }}
             platforms: linux/${{ matrix.platform }}
             tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
             load: true
@@ -91,8 +91,9 @@ jobs:
         - name: Add colima testcontainer environment
           if: ${{ matrix.runner == 'macos-13' }}
           run: |
+            echo "TESTCONTAINERS_HOST_OVERRIDE=$(colima ls -j | jq -r '.address')" >> "$GITHUB_ENV"
             echo "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock" >> "$GITHUB_ENV"
-            echo 'DOCKER_HOST="unix://${HOME}/.colima/docker.sock"' >> "$GITHUB_ENV"
+            echo "DOCKER_HOST=unix://${HOME}/.colima/docker.sock" >> "$GITHUB_ENV"
 
         - name: Run tests
           run: |
