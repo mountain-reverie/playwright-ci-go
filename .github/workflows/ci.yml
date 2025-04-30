@@ -70,7 +70,7 @@ jobs:
           id: cache
           run: |
             if [[ "${{ matrix.runner }}" == "macos-13" ]]; then
-              echo "cache=type=local,mode=max,scope=${{ matrix.platform }}" >> "$GITHUB_OUTPUT"
+              echo "cache=" >> "$GITHUB_OUTPUT"
             else
               echo "cache=type=gha,mode=max,scope=${{ matrix.platform }}" >> "$GITHUB_OUTPUT"
             fi
