@@ -141,10 +141,11 @@ jobs:
               tests.json
               coverage.out
 
-        - name: Code coverage report
-          if: github.event_name == 'pull_request'
-          uses: fgrosse/go-coverage-report@8c1d1a09864211d258937b1b1a5b849f7e4f2682 # Consider using a Git revision for maximum security
-          with:
-            coverage-artifact-name: "Tests analytics" # can be omitted if you used this default value
-            coverage-file-name: "coverage.out" # can be omitted if you used this default value
+# Turned off due to https://github.com/fgrosse/go-coverage-report/issues/5
+#        - name: Code coverage report
+#          if: ${{ github.event_name == 'pull_request' && matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+#          uses: fgrosse/go-coverage-report@8c1d1a09864211d258937b1b1a5b849f7e4f2682 # Consider using a Git revision for maximum security
+#          with:
+#            coverage-artifact-name: "Tests analytics" # can be omitted if you used this default value
+#            coverage-file-name: "coverage.out" # can be omitted if you used this default value
 
