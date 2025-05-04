@@ -90,6 +90,11 @@ jobs:
             tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
             load: true
 
+        - name: Install go-task
+          uses: jaxxstorm/action-install-gh-release@6096f2a2bbfee498ced520b6922ac2c06e990ed2
+          with: # Grab the latest version
+            repo: gotestyourself/gotestsum
+  
         - name: Initialize CodeQL
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
           uses: github/codeql-action/init@018ac1a585e52f775ee7460e25bd00c4d516240e
@@ -109,10 +114,17 @@ jobs:
           run: |
             export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
             export PLAYWRIGHTCI_TAG=${{ github.sha }}
-            go test -v ./...
+            gotestsum --jsonfile tests.json -- -covermode=atomic -coverprofile=coverage.out ./...
 
         - name: Perform CodeQL Analysis
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
           uses: github/codeql-action/analyze@v3
           with:
             category: "/language:go"
+
+        - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+          with:
+            name: Tests analytics
+            path: |
+              tests.json
+              coverage.out
