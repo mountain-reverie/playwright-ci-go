@@ -20,6 +20,9 @@ jobs:
             version: v2.0
 
     tests:
+      permissions:
+        security-events: write
+        packages: read
       defaults:
         run:
           shell: bash

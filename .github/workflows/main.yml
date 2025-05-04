@@ -9,6 +9,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  security-events: write
+  packages: write
+  attestations: write
+  id-token: write
+
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
@@ -55,6 +61,10 @@ jobs:
           git push origin "${{ steps.semver.outputs.version }}"
 
   docker:
+    permissions:
+      packages: write
+      attestations: write
+      id-token: write
     needs: tag
     runs-on: ubuntu-latest
     steps:
