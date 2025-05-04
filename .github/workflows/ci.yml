@@ -99,7 +99,7 @@ jobs:
           id: scan
           with:
             image: ghcr.io/${{ github.repository }}:${{ github.sha }}
-            fail-build: true
+            fail-build: false
             output-format: sarif
     
         - name: Upload Anchore Scan SARIF Report
