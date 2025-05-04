@@ -52,6 +52,8 @@ func Test_HelloWorld(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.browser, func(t *testing.T) {
+			t.Parallel()
+
 			browser, err := test.instantiate()
 			require.NoError(t, err)
 

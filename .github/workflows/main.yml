@@ -90,31 +90,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image locally for ARM64, but use cache from GHA
-        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
-        with:
-          context: "{{defaultContext}}:docker"
-          build-args: PLAYWRIGHT_VERSION=${{ needs.tag.outputs.playwright }}
-          push: false
-          file: "Dockerfile"
-          cache-from: type=gha,scope=arm64
-          platforms: linux/arm64
-          
-      - name: Build image locally for AMD64, but use cache from GHA
-        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
-        with:
-          context: "{{defaultContext}}:docker"
-          build-args: PLAYWRIGHT_VERSION=${{ needs.tag.outputs.playwright }}
-          push: false
-          file: "Dockerfile"
-          cache-from: type=gha,scope=amd64
-          platforms: linux/amd64
-  
       - name: Push image
         uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
         id: push
         with:
           context: "{{defaultContext}}:docker"
+          cache-from: |
+            type=gha,scope=amd64
+            type=gha,scope=arm64
           build-args: PLAYWRIGHT_VERSION=${{ needs.tag.outputs.playwright }}  
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ needs.tag.outputs.version }}
