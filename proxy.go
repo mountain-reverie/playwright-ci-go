@@ -37,8 +37,11 @@ func transparentProxy() (string, int, func()) {
 		}
 	}()
 
-	split := strings.Split(l.Addr().String(), ":")
-	port, err := strconv.ParseInt(split[1], 10, 64)
+	host, portStr, err := net.SplitHostPort(l.Addr().String())
+	if err != nil {
+		log.Fatalf("Failed to parse address %s: %v", l.Addr().String(), err)
+	}
+	port, err := strconv.ParseInt(portStr, 10, 64)
 	if err != nil {
 		log.Fatalf("Failed to parse port number from address %s: %v", l.Addr().String(), err)
 	}
@@ -46,7 +49,7 @@ func transparentProxy() (string, int, func()) {
 		log.Fatalf("Could not connect to proxy: %s", err)
 	}
 
-	return "http://" + testcontainers.HostInternal + ":" + split[1], int(port), func() {
+	return "http://" + testcontainers.HostInternal + ":" + portStr, int(port), func() {
 		_ = srv.Shutdown(context.Background())
 		_ = l.Close()
 	}
