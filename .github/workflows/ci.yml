@@ -30,14 +30,16 @@ jobs:
           include:
           - runner: ubuntu-latest
             platform: amd64
+# This platform currently do not support docker/podman on GitHub Runners
 #          - runner: macos-latest
 #            platform: arm64
 #          - runner: windows-latest
 #            platform: amd64
           - runner: ubuntu-24.04-arm
             platform: arm64
-          - runner: macos-13
-            platform: amd64
+# Disable for now due to https://github.com/testcontainers/testcontainers-go/issues/2952
+#          - runner: macos-13
+#            platform: amd64
 
       steps:
         - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
