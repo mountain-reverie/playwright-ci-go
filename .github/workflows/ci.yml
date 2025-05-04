@@ -52,7 +52,7 @@ jobs:
 
         - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
           with:
-            go-version: ${{ steps.go.outputs.version }}    
+            go-version: ${{ steps.go.outputs.version }}
 
         - name: Playwright version
           id: playwright
@@ -90,6 +90,13 @@ jobs:
             tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
             load: true
 
+        - name: Initialize CodeQL
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          uses: github/codeql-action/init@018ac1a585e52f775ee7460e25bd00c4d516240e
+          with:
+            languages: go
+            build-mode: manual
+  
         - name: Add colima testcontainer environment
           if: ${{ matrix.runner == 'macos-13' }}
           run: |
@@ -103,3 +110,9 @@ jobs:
             export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
             export PLAYWRIGHTCI_TAG=${{ github.sha }}
             go test -v ./...
+
+        - name: Perform CodeQL Analysis
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          uses: github/codeql-action/analyze@v3
+          with:
+            category: "/language:go"
