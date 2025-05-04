@@ -125,6 +125,14 @@ jobs:
           with:
             category: "/language:go"
 
+        - name: Install goteststats
+          run: |
+            go install github.com/getvictor/goteststats@latest
+
+        - name: Generate goteststats report
+          run: |
+            cat tests.json | goteststats
+
         - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
           with:
             name: Tests analytics
