@@ -114,6 +114,10 @@ jobs:
             echo "TESTCONTAINERS_RYUK_DISABLED=true" >> "$GITHUB_ENV"
             echo "DOCKER_HOST=unix://${HOME}/.colima/docker.sock" >> "$GITHUB_ENV"
 
+        - name: Build package for CodeQL
+          run: |
+            go build .
+
         - name: Run tests
           run: |
             export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
