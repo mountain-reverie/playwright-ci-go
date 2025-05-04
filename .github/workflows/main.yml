@@ -14,6 +14,7 @@ permissions:
   packages: write
   attestations: write
   id-token: write
+  repository-projects: write
 
 jobs:
   ci:
@@ -22,6 +23,9 @@ jobs:
   tag:
     needs: ci
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      repository-projects: write
     outputs:
       version: ${{ steps.semver.outputs.version }}
       playwright: ${{ steps.playwright.outputs.playwright_go_version }}
