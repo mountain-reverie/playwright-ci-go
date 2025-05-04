@@ -1,0 +1,121 @@
+name: Continuous Integration on main
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  security-events: write
+  packages: write
+  attestations: write
+  id-token: write
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  tag:
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semver.outputs.version }}
+      playwright: ${{ steps.playwright.outputs.playwright_go_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          fetch-depth: 0
+
+      - name: Playwright version
+        id: playwright
+        run: |
+          export PLAYWRIGHT_GO_VERSION=$(go list -m all | grep github.com/playwright-community/playwright-go | awk '{print $2}')
+          echo "playwright_go_version=$PLAYWRIGHT_GO_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Get Next Version
+        id: semver
+        run: |
+          majorminor=$(echo "${{ steps.playwright.outputs.playwright_go_version }}" | cut -d "." -f 1-2)
+          patch=$(git tag | grep "$majorminor" | sort -n | tail -n 1 | cut -d "." -f 3)
+          if [ -z "$patch" ]; then
+            patch=0
+          else
+            patch=$((patch + 1))
+          fi
+          echo "Version: $majorminor.$patch"
+          echo "version=$majorminor.$patch" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag
+        run: |
+          git config --local user.name "GitHub Actions"
+          git config --local user.email "cedric.bail@pm.me"
+
+      - name: Create tag
+        run: |
+          git tag -a "${{ steps.semver.outputs.version }}" -m "${{ steps.semver.outputs.version }} release"
+          git push origin "${{ steps.semver.outputs.version }}"
+
+  docker:
+    permissions:
+      packages: write
+      attestations: write
+      id-token: write
+    needs: tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image locally for ARM64, but use cache from GHA
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
+        with:
+          context: "{{defaultContext}}:docker"
+          build-args: PLAYWRIGHT_VERSION=${{ needs.tag.outputs.playwright }}
+          push: false
+          file: "Dockerfile"
+          cache-from: type=gha,scope=arm64
+          platforms: linux/arm64
+          
+      - name: Build image locally for AMD64, but use cache from GHA
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
+        with:
+          context: "{{defaultContext}}:docker"
+          build-args: PLAYWRIGHT_VERSION=${{ needs.tag.outputs.playwright }}
+          push: false
+          file: "Dockerfile"
+          cache-from: type=gha,scope=amd64
+          platforms: linux/amd64
+  
+      - name: Push image
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
+        id: push
+        with:
+          context: "{{defaultContext}}:docker"
+          build-args: PLAYWRIGHT_VERSION=${{ needs.tag.outputs.playwright }}  
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ needs.tag.outputs.version }}
+          platforms: linux/arm64,linux/amd64
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

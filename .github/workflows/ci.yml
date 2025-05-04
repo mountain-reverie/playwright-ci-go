@@ -1,0 +1,169 @@
+name: Continuous Integration
+
+on: [ pull_request, workflow_dispatch, workflow_call ]
+
+jobs:
+    lint:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+          with:
+            persist-credentials: false
+
+        - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
+          with:
+            go-version: stable
+
+        - name: Run golangci-lint
+          uses: golangci/golangci-lint-action@1481404843c368bc19ca9406f87d6e0fc97bdcfd
+          with:
+            version: v2.0
+
+    tests:
+      permissions:
+        pull-requests: write
+        security-events: write
+        packages: read
+      defaults:
+        run:
+          shell: bash
+      runs-on:  ${{ matrix.runner }}
+      strategy:
+        fail-fast: false
+        matrix:
+          include:
+          - runner: ubuntu-latest
+            platform: amd64
+# This platform currently do not support docker/podman on GitHub Runners
+#          - runner: macos-latest
+#            platform: arm64
+#          - runner: windows-latest
+#            platform: amd64
+          - runner: ubuntu-24.04-arm
+            platform: arm64
+# Disable for now due to https://github.com/testcontainers/testcontainers-go/issues/2952
+#          - runner: macos-13
+#            platform: amd64
+
+      steps:
+        - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+          with:
+            persist-credentials: false
+
+        - name: Get go version
+          id: go
+          run: echo "version=$(grep '^go ' go.mod | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+
+        - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491
+          with:
+            go-version: ${{ steps.go.outputs.version }}
+
+        - name: Playwright version
+          id: playwright
+          run: |
+            export PLAYWRIGHT_GO_VERSION=$(go list -m all | grep github.com/playwright-community/playwright-go | awk '{print $2}')
+            echo "playwright_go_version=$PLAYWRIGHT_GO_VERSION" >> "$GITHUB_OUTPUT"
+            echo "version="$(go run github.com/playwright-community/playwright-go/cmd/playwright@$PLAYWRIGHT_GO_VERSION --version |cut -d " " -f 2) >> "$GITHUB_OUTPUT"
+
+        - name: Install Docker
+          if: ${{ matrix.runner == 'macos-13' }}
+          uses: douglascamata/setup-docker-macos-action@a9ac5585664f0f68b067ff33c4e993ebd5279425
+
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349
+
+        - name: Figure out cache destination depending on runner
+          id: cache
+          run: |
+            if [[ "${{ matrix.runner }}" == "macos-13" ]]; then
+              echo "cache=" >> "$GITHUB_OUTPUT"
+            else
+              echo "cache=type=gha,mode=max,scope=${{ matrix.platform }}" >> "$GITHUB_OUTPUT"
+            fi
+          
+        - name: Build image locally, but use cache from GHA
+          uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
+          with:
+            context: "{{defaultContext}}:docker"
+            build-args: PLAYWRIGHT_VERSION=${{ steps.playwright.outputs.version }}
+            push: false
+            file: "Dockerfile"
+            cache-from: type=gha,scope=${{ matrix.platform }}
+            cache-to: ${{ steps.cache.outputs.cache }}
+            platforms: linux/${{ matrix.platform }}
+            tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+            load: true
+
+        - name: Scan Image
+          uses: anchore/scan-action@2c901ab7378897c01b8efaa2d0c9bf519cc64b9e
+          id: scan
+          with:
+            image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+            fail-build: false
+            output-format: sarif
+    
+        - name: Upload Anchore Scan SARIF Report
+          uses: github/codeql-action/upload-sarif@018ac1a585e52f775ee7460e25bd00c4d516240e
+          with:
+            sarif_file: ${{ steps.scan.outputs.sarif }}
+
+        - name: Install go-task
+          uses: jaxxstorm/action-install-gh-release@6096f2a2bbfee498ced520b6922ac2c06e990ed2
+          with: # Grab the latest version
+            repo: gotestyourself/gotestsum
+  
+        - name: Initialize CodeQL
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          uses: github/codeql-action/init@018ac1a585e52f775ee7460e25bd00c4d516240e
+          with:
+            languages: go
+            build-mode: manual
+  
+        - name: Add colima testcontainer environment
+          if: ${{ matrix.runner == 'macos-13' }}
+          run: |
+            echo "TESTCONTAINERS_HOST_OVERRIDE=$(colima ls -j | jq -r '.address')" >> "$GITHUB_ENV"
+            echo "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock" >> "$GITHUB_ENV"
+            echo "TESTCONTAINERS_RYUK_DISABLED=true" >> "$GITHUB_ENV"
+            echo "DOCKER_HOST=unix://${HOME}/.colima/docker.sock" >> "$GITHUB_ENV"
+
+        - name: Build package for CodeQL
+          run: |
+            go build .
+
+        - name: Run tests
+          run: |
+            export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
+            export PLAYWRIGHTCI_TAG=${{ github.sha }}
+            gotestsum --jsonfile tests.json -- -covermode=atomic -coverprofile="coverage.out" -cpuprofile="cpu.profile" .
+
+        - name: Perform CodeQL Analysis
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          uses: github/codeql-action/analyze@v3
+          with:
+            category: "/language:go"
+
+        - name: Install goteststats
+          run: |
+            go install github.com/getvictor/goteststats@latest
+
+        - name: Generate goteststats report
+          run: |
+            cat tests.json | goteststats
+
+        - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+          with:
+            name: "Tests analytics on ${{ matrix.platform}}"
+            path: |
+              tests.json
+              coverage.out
+              cpu.profile
+
+# Turned off due to https://github.com/fgrosse/go-coverage-report/issues/5
+#        - name: Code coverage report
+#          if: ${{ github.event_name == 'pull_request' && matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+#          uses: fgrosse/go-coverage-report@8c1d1a09864211d258937b1b1a5b849f7e4f2682 # Consider using a Git revision for maximum security
+#          with:
+#            coverage-artifact-name: "Tests analytics" # can be omitted if you used this default value
+#            coverage-file-name: "coverage.out" # can be omitted if you used this default value
+
