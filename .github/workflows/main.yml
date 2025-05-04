@@ -30,7 +30,7 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.semver.outputs.version }}
-      playwright: ${{ steps.playwright.outputs.playwright_go_version }}
+      playwright: ${{ steps.playwright.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
@@ -42,6 +42,7 @@ jobs:
         run: |
           export PLAYWRIGHT_GO_VERSION=$(go list -m all | grep github.com/playwright-community/playwright-go | awk '{print $2}')
           echo "playwright_go_version=$PLAYWRIGHT_GO_VERSION" >> "$GITHUB_OUTPUT"
+          echo "version="$(go run github.com/playwright-community/playwright-go/cmd/playwright@$PLAYWRIGHT_GO_VERSION --version |cut -d " " -f 2) >> "$GITHUB_OUTPUT"
 
       - name: Get Next Version
         id: semver
