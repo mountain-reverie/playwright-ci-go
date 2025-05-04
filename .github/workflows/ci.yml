@@ -21,7 +21,7 @@ jobs:
 
     tests:
       permissions:
-        pull-requests: write
+#        pull-requests: write
         security-events: write
         packages: read
       defaults:
