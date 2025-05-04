@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/elazarl/goproxy"
@@ -37,7 +36,7 @@ func transparentProxy() (string, int, func()) {
 		}
 	}()
 
-	host, portStr, err := net.SplitHostPort(l.Addr().String())
+	_, portStr, err := net.SplitHostPort(l.Addr().String())
 	if err != nil {
 		log.Fatalf("Failed to parse address %s: %v", l.Addr().String(), err)
 	}
