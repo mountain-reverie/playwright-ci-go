@@ -15,6 +15,7 @@ permissions:
   attestations: write
   id-token: write
   repository-projects: write
+  contents: write
 
 jobs:
   ci:
@@ -26,6 +27,7 @@ jobs:
     permissions:
       id-token: write
       repository-projects: write
+      contents: write
     outputs:
       version: ${{ steps.semver.outputs.version }}
       playwright: ${{ steps.playwright.outputs.playwright_go_version }}
