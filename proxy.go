@@ -44,6 +44,10 @@ func transparentProxy() (string, int, func()) {
 	if err != nil {
 		log.Fatalf("Failed to parse port number from address %s: %v", l.Addr().String(), err)
 	}
+	// Ensure the port number is within the valid range for a 16-bit unsigned integer
+	if port < 0 || port > 65535 {
+		log.Fatalf("Parsed port number %d is out of valid range (0-65535)", port)
+	}
 	if err := wait4port("http://" + l.Addr().String()); err != nil {
 		log.Fatalf("Could not connect to proxy: %s", err)
 	}
