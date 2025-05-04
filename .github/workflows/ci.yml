@@ -118,7 +118,7 @@ jobs:
           run: |
             export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
             export PLAYWRIGHTCI_TAG=${{ github.sha }}
-            gotestsum --jsonfile tests.json -- -covermode=atomic -coverprofile=coverage.out ./...
+            gotestsum --jsonfile tests.json -- -covermode=atomic -coverprofile="coverage.out" -cpuprofile="cpu.profile" .
 
         - name: Perform CodeQL Analysis
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
@@ -140,6 +140,7 @@ jobs:
             path: |
               tests.json
               coverage.out
+              cpu.profile
 
 # Turned off due to https://github.com/fgrosse/go-coverage-report/issues/5
 #        - name: Code coverage report
