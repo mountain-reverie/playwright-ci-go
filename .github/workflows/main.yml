@@ -48,7 +48,7 @@ jobs:
         id: semver
         run: |
           majorminor=$(echo "${{ steps.playwright.outputs.playwright_go_version }}" | cut -d "." -f 1-2)
-          patch=$(git tag | grep "$majorminor" | sort -n | tail -n 1 | cut -d "." -f 3)
+          patch=$(git tag | grep "$majorminor" | sort -V | tail -n 1 | cut -d "." -f 3)
           if [ -z "$patch" ]; then
             patch=0
           else
