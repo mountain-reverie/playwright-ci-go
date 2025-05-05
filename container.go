@@ -33,7 +33,7 @@ type container struct {
 func new(version string, opts ...Option) (*container, error) {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		if info.Main.Version != "" && info.Main.Version != "(devel)" {
-			version = info.Main.Version
+			version = "v" + info.Main.Version
 			log.Println("Using version from build info:", version)
 		} else {
 			log.Println("No version found in build info. Using default version:", version)
