@@ -1,7 +1,7 @@
 package playwrightcigo
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"image"
 	"log"
@@ -39,11 +39,10 @@ func Test_HelloWorld(t *testing.T) {
 
 	go func() {
 		err := srv.Serve(l)
-		if err != nil {
-			log.Fatalf("could not serve: %v", err)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Could not serve: %v", err)
 		}
 	}()
-	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	err = Wait4Port(base)
 	require.NoError(t, err)
