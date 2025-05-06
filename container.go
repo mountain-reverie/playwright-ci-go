@@ -7,6 +7,7 @@ import (
 	"log"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/go-connections/nat"
@@ -17,8 +18,10 @@ import (
 type config struct {
 	ctx        context.Context
 	timeout    time.Duration
+	sleeping   time.Duration
 	repository string
 	tag        string
+	retry      int
 }
 
 type container struct {
@@ -31,22 +34,44 @@ type container struct {
 }
 
 func new(version string, opts ...Option) (*container, error) {
+	splitted := strings.Split(version, ".")
+	if len(splitted) != 3 {
+		return nil, fmt.Errorf("invalid version format: %s", version)
+	}
+
+	imageVersion := fmt.Sprintf("v0.%s%02s.0", splitted[1], splitted[2])
+	if imageVersion == "v0.5101.0" {
+		// Workaround our CI having failed publishing this version
+		imageVersion = "v0.5101.1"
+	}
+
 	if info, ok := debug.ReadBuildInfo(); ok {
-		if info.Main.Version != "" && info.Main.Version != "(devel)" {
-			version = "v" + info.Main.Version
-			log.Println("Using version from build info:", version)
-		} else {
-			log.Println("No version found in build info. Using default version:", version)
+		found := false
+		for _, deps := range info.Deps {
+			fmt.Println("Dependency:", deps.Path, "Version:", deps.Version)
+			if strings.Contains(deps.Path, "github.com/mountain-reverie/playwright-ci-go") {
+				if len(deps.Version) > 0 && deps.Version[0] == 'v' {
+					imageVersion = deps.Version
+					found = true
+					log.Println("Using version from build info:", imageVersion)
+					break
+				}
+			}
+		}
+		if !found {
+			log.Println("No version found in build info. Using default version:", imageVersion)
 		}
 	} else {
-		log.Println("No build info found. Keeping version as:", version)
+		log.Println("No build info found. Keeping version as:", imageVersion)
 	}
 
 	c := &config{
 		timeout:    5 * time.Minute,
+		sleeping:   200 * time.Millisecond,
+		retry:      15,
 		ctx:        context.Background(),
 		repository: "ghcr.io/mountain-reverie/playwright-ci-go",
-		tag:        version,
+		tag:        imageVersion,
 	}
 	for _, opt := range opts {
 		opt.apply(c)
@@ -56,7 +81,7 @@ func new(version string, opts ...Option) (*container, error) {
 
 	timeoutSecond := int(c.timeout.Seconds())
 
-	proxy, proxyPort, close := transparentProxy()
+	proxy, proxyPort, close := transparentProxy(c.retry, c.sleeping)
 
 	log.Println("Starting browser container", fmt.Sprintf("%s:%s", c.repository, c.tag))
 	genericContainerReq := testcontainers.GenericContainerRequest{
@@ -142,7 +167,7 @@ func port(ctx context.Context, container testcontainers.Container, host string, 
 	if err != nil {
 		return 0, fmt.Errorf("could not get browser port: %w", err)
 	}
-	if err := wait4port(fmt.Sprintf("http://%s:%d", host, p.Int())); err != nil {
+	if err := Wait4Port(fmt.Sprintf("http://%s:%d", host, p.Int())); err != nil {
 		return 0, fmt.Errorf("timeout, could not connect to browser container: %w", err)
 	}
 	return p.Int(), nil

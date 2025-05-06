@@ -14,7 +14,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
-func transparentProxy() (string, int, func()) {
+func transparentProxy(retry int, sleeping time.Duration) (string, int, func()) {
 	// Listen for incoming connections
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -48,7 +48,7 @@ func transparentProxy() (string, int, func()) {
 	if port < 0 || port > 65535 {
 		log.Fatalf("Parsed port number %d is out of valid range (0-65535)", port)
 	}
-	if err := wait4port("http://" + l.Addr().String()); err != nil {
+	if err := Wait4Port("http://"+l.Addr().String(), WithRetry(retry), WithSleeping(sleeping)); err != nil {
 		log.Fatalf("Could not connect to proxy: %s", err)
 	}
 
@@ -58,14 +58,31 @@ func transparentProxy() (string, int, func()) {
 	}
 }
 
-func wait4port(addr string) error {
-	time.Sleep(time.Second)
-	for i := 0; i < 15; i++ {
-		resp, err := http.Get(addr)
+func Wait4Port(addr string, opts ...Option) error {
+	c := &config{
+		sleeping: 200 * time.Millisecond,
+		retry:    15,
+		ctx:      context.Background(),
+	}
+	for _, opt := range opts {
+		opt.apply(c)
+	}
+
+	if err := SleepWithContext(c.ctx, c.sleeping); err != nil {
+		return err
+	}
+	for i := 0; i < c.retry; i++ {
+		req, err := http.NewRequestWithContext(c.ctx, "GET", addr, nil)
 		if err != nil {
-			t := 200 * time.Millisecond
-			log.Println("could not connect to", addr, "error", err, "retrying in", t)
-			time.Sleep(t)
+			return fmt.Errorf("could not create a request to %s: %w", addr, err)
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Println("could not connect to", addr, "yet, error", err, "retrying in", c.sleeping)
+			if err := SleepWithContext(c.ctx, c.sleeping); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := resp.Body.Close(); err != nil {
@@ -75,4 +92,13 @@ func wait4port(addr string) error {
 		return nil
 	}
 	return fmt.Errorf("could not connect to %s after retry and timeout", addr)
+}
+
+func SleepWithContext(ctx context.Context, d time.Duration) error {
+	select {
+	case <-time.After(d):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

@@ -1,6 +1,7 @@
 package playwrightcigo
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"log"
@@ -28,18 +29,22 @@ func Test_HelloWorld(t *testing.T) {
 
 	base := "http://" + l.Addr().String()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Hello World!"))
 	})
+	srv := &http.Server{
+		Handler: mux,
+	}
 
 	go func() {
-		err := http.Serve(l, nil)
-		if err != nil {
-			log.Fatalf("could not serve: %v", err)
+		err := srv.Serve(l)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Could not serve: %v", err)
 		}
 	}()
 
-	err = wait4port(base)
+	err = Wait4Port(base)
 	require.NoError(t, err)
 
 	tests := []struct {

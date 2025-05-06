@@ -131,6 +131,10 @@ jobs:
           run: |
             go build .
 
+        - name: Tag the image to match the example test
+          run: |
+            docker tag ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:${{ steps.playwright.outputs.playwright_go_version }}
+
         - name: Run tests
           run: |
             export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}

@@ -10,11 +10,16 @@ import (
 
 var pw *playwright.Playwright
 var browsers *container
+var count = 0
 
 var mutex sync.Mutex
 
 func Install(opts ...Option) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if pw != nil {
+		count++
 		return nil
 	}
 
@@ -41,11 +46,19 @@ func Install(opts ...Option) error {
 		log.Fatalf("Could not create container: %s", err)
 	}
 
+	count++
 	return nil
 }
 
 func Uninstall() error {
 	if pw == nil {
+		return nil
+	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
+	count--
+	if count > 0 {
 		return nil
 	}
 
