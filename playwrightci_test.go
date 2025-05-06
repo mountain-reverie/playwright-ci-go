@@ -1,6 +1,7 @@
 package playwrightcigo
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"log"
@@ -31,15 +32,17 @@ func Test_HelloWorld(t *testing.T) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Hello World!"))
 	})
+	srv := &http.Server{}
 
 	go func() {
-		err := http.Serve(l, nil)
+		err := srv.Serve(l)
 		if err != nil {
 			log.Fatalf("could not serve: %v", err)
 		}
 	}()
+	defer srv.Shutdown(context.Background())
 
-	err = wait4port(base)
+	err = Wait4Port(base)
 	require.NoError(t, err)
 
 	tests := []struct {

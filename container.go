@@ -18,8 +18,10 @@ import (
 type config struct {
 	ctx        context.Context
 	timeout    time.Duration
+	sleeping   time.Duration
 	repository string
 	tag        string
+	retry      int
 }
 
 type container struct {
@@ -65,6 +67,8 @@ func new(version string, opts ...Option) (*container, error) {
 
 	c := &config{
 		timeout:    5 * time.Minute,
+		sleeping:   200 * time.Millisecond,
+		retry:      15,
 		ctx:        context.Background(),
 		repository: "ghcr.io/mountain-reverie/playwright-ci-go",
 		tag:        imageVersion,
@@ -77,7 +81,7 @@ func new(version string, opts ...Option) (*container, error) {
 
 	timeoutSecond := int(c.timeout.Seconds())
 
-	proxy, proxyPort, close := transparentProxy()
+	proxy, proxyPort, close := transparentProxy(c.retry, c.sleeping)
 
 	log.Println("Starting browser container", fmt.Sprintf("%s:%s", c.repository, c.tag))
 	genericContainerReq := testcontainers.GenericContainerRequest{
@@ -163,7 +167,7 @@ func port(ctx context.Context, container testcontainers.Container, host string, 
 	if err != nil {
 		return 0, fmt.Errorf("could not get browser port: %w", err)
 	}
-	if err := wait4port(fmt.Sprintf("http://%s:%d", host, p.Int())); err != nil {
+	if err := Wait4Port(fmt.Sprintf("http://%s:%d", host, p.Int())); err != nil {
 		return 0, fmt.Errorf("timeout, could not connect to browser container: %w", err)
 	}
 	return p.Int(), nil
