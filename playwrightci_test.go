@@ -29,10 +29,13 @@ func Test_HelloWorld(t *testing.T) {
 
 	base := "http://" + l.Addr().String()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Hello World!"))
 	})
-	srv := &http.Server{}
+	srv := &http.Server{
+		Handler: mux,
+	}
 
 	go func() {
 		err := srv.Serve(l)
