@@ -7,6 +7,7 @@ import (
 	"log"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/go-connections/nat"
@@ -31,22 +32,42 @@ type container struct {
 }
 
 func new(version string, opts ...Option) (*container, error) {
+	splitted := strings.Split(version, ".")
+	if len(splitted) != 3 {
+		return nil, fmt.Errorf("invalid version format: %s", version)
+	}
+
+	imageVersion := fmt.Sprintf("v0.%s%02s.0", splitted[1], splitted[2])
+	if imageVersion == "v0.5101.0" {
+		// Workaround our CI having failed publishing this version
+		imageVersion = "v0.5101.1"
+	}
+
 	if info, ok := debug.ReadBuildInfo(); ok {
-		if info.Main.Version != "" && info.Main.Version != "(devel)" {
-			version = "v" + info.Main.Version
-			log.Println("Using version from build info:", version)
-		} else {
-			log.Println("No version found in build info. Using default version:", version)
+		found := false
+		for _, deps := range info.Deps {
+			fmt.Println("Dependency:", deps.Path, "Version:", deps.Version)
+			if strings.Contains(deps.Path, "github.com/mountain-reverie/playwright-ci-go") {
+				if len(deps.Version) > 0 && deps.Version[0] == 'v' {
+					imageVersion = deps.Version
+					found = true
+					log.Println("Using version from build info:", imageVersion)
+					break
+				}
+			}
+		}
+		if !found {
+			log.Println("No version found in build info. Using default version:", imageVersion)
 		}
 	} else {
-		log.Println("No build info found. Keeping version as:", version)
+		log.Println("No build info found. Keeping version as:", imageVersion)
 	}
 
 	c := &config{
 		timeout:    5 * time.Minute,
 		ctx:        context.Background(),
 		repository: "ghcr.io/mountain-reverie/playwright-ci-go",
-		tag:        version,
+		tag:        imageVersion,
 	}
 	for _, opt := range opts {
 		opt.apply(c)
