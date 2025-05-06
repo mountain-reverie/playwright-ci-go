@@ -37,7 +37,7 @@ func Test_Firefox(t *testing.T) {
 			log.Fatalf("Could not serve: %v", err)
 		}
 	}()
-	defer srv.Shutdown(context.Background())
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	err = playwrightcigo.Wait4Port(base)
 	require.NoError(t, err)

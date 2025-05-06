@@ -40,7 +40,7 @@ func Test_HelloWorld(t *testing.T) {
 			log.Fatalf("could not serve: %v", err)
 		}
 	}()
-	defer srv.Shutdown(context.Background())
+	defer func() { _ = srv.Shutdown(context.Background()) }()
 
 	err = Wait4Port(base)
 	require.NoError(t, err)
