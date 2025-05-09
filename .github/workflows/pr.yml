@@ -1,6 +1,22 @@
 name: Continuous Integration
 
-on: [ pull_request, workflow_dispatch ]
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - labeled
+      - unlabeled
+      - assigned
+      - unassigned
+      - review_requested
+      - review_request_removed
+      - ready_for_review
+      - locked
+      - unlocked
+  workflow_dispatch:
 
 permissions:
   security-events: write
@@ -9,4 +25,3 @@ permissions:
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
-  
