@@ -1,3 +1,5 @@
+// Package playwrightcigo provides a containerized solution for running
+// Playwright browser tests in Go with consistent behavior across environments.
 package playwrightcigo
 
 import (
@@ -14,6 +16,13 @@ var count = 0
 
 var mutex sync.Mutex
 
+// Install sets up the containerized Playwright environment.
+// It installs the Playwright driver and creates a container to run the browsers.
+// This function should be called once before using any browser.
+// Options can be provided to customize the installation behavior.
+// Multiple calls to Install are supported, but only the first one will
+// perform the actual installation.
+// Generally you want to call this in your TestMain function.
 func Install(opts ...Option) error {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -50,6 +59,10 @@ func Install(opts ...Option) error {
 	return nil
 }
 
+// Uninstall cleans up resources created by Install.
+// This function should be called when you're finished with all browser testing.
+// There should be as many calls to Uninstall as there were calls to Install.
+// Generally you want to call this in your TestMain function.
 func Uninstall() error {
 	if pw == nil {
 		return nil

@@ -87,19 +87,144 @@ playwrightcigo.Install(
 )
 ```
 
-## Supported Browsers
+## API Reference
 
-Access any of these browsers with a simple API:
+### Installation and Cleanup
+
+#### Install
 
 ```go
-// Get a Chromium browser instance
-chromium, err := playwrightcigo.Chromium()
+func Install(opts ...Option) error
+```
 
-// Get a Firefox browser instance
-firefox, err := playwrightcigo.Firefox()
+Installs the necessary components for Playwright testing in a containerized environment.
 
-// Get a WebKit browser instance
-webkit, err := playwrightcigo.Webkit()
+**Options:**
+- `WithTimeout(timeout time.Duration)` - Sets a custom timeout for installation (default: 5 minutes)
+- `WithContext(ctx context.Context)` - Provides a context for cancellation (default: background context)
+- `WithRetry(count int)` - Sets the number of retry attempts (default: 15)
+- `WithSleeping(duration time.Duration)` - Sets sleep duration between retries (default: 200ms)
+- `WithRepository(repository, tag string)` - Uses a custom container repository and tag
+
+**Example:**
+```go
+err := playwrightcigo.Install(
+    playwrightcigo.WithTimeout(3 * time.Minute),
+    playwrightcigo.WithRetry(20),
+)
+```
+
+#### Uninstall
+
+```go
+func Uninstall() error
+```
+
+Cleans up and removes the Playwright resources.
+
+**Example:**
+```go
+defer playwrightcigo.Uninstall()
+```
+
+### Browsers
+
+#### Chromium
+
+```go
+func Chromium() (playwright.Browser, error)
+```
+
+Launches and returns a Chromium browser instance.
+
+**Example:**
+```go
+browser, err := playwrightcigo.Chromium()
+if err != nil {
+    log.Fatalf("Could not launch Chromium: %v", err)
+}
+defer browser.Close()
+```
+
+#### Firefox
+
+```go
+func Firefox() (playwright.Browser, error)
+```
+
+Launches and returns a Firefox browser instance.
+
+**Example:**
+```go
+browser, err := playwrightcigo.Firefox()
+if err != nil {
+    log.Fatalf("Could not launch Firefox: %v", err)
+}
+defer browser.Close()
+```
+
+#### Webkit
+
+```go
+func Webkit() (playwright.Browser, error)
+```
+
+Launches and returns a WebKit browser instance.
+
+**Example:**
+```go
+browser, err := playwrightcigo.Webkit()
+if err != nil {
+    log.Fatalf("Could not launch WebKit: %v", err)
+}
+defer browser.Close()
+```
+
+### Utilities
+
+#### Wait4Port
+
+```go
+func Wait4Port(addr string, opts ...Option) error
+```
+
+Waits for a specific network port to be available with configurable retry logic.
+
+**Parameters:**
+- `addr` - The address to check (e.g., "http://localhost:8080")
+- `opts` - Options for customizing the wait behavior
+
+**Example:**
+```go
+err := playwrightcigo.Wait4Port(
+    "http://localhost:8080", 
+    playwrightcigo.WithRetry(10),
+    playwrightcigo.WithSleeping(500 * time.Millisecond),
+)
+```
+
+#### Option Customization
+
+```go
+func WithContext(ctx context.Context) Option
+func WithTimeout(timeout time.Duration) Option
+func WithRetry(count int) Option
+func WithSleeping(sleeping time.Duration) Option
+func WithRepository(repository, tag string) Option
+```
+
+Functions for customizing behavior of the library operations.
+
+**Example:**
+```go
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+playwrightcigo.Install(
+    playwrightcigo.WithContext(ctx),
+    playwrightcigo.WithTimeout(time.Minute * 2),
+    playwrightcigo.WithRetry(10),
+)
 ```
 
 ## CI Integration

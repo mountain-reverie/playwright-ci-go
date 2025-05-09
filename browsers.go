@@ -10,6 +10,13 @@ import (
 var chromium string
 var chromiumCancel context.CancelFunc
 
+// Chromium launches a Chromium browser instance in the container
+// and returns a browser object that can be used to create pages,
+// navigate to websites, and perform browser automation.
+//
+// The connection to the browser is established via WebSockets.
+// You should call browser.Close() when you're done with the browser.
+// The API of the returned browser object is the Playwright API.
 func Chromium() (playwright.Browser, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -35,6 +42,13 @@ func Chromium() (playwright.Browser, error) {
 var firefox string
 var firefoxCancel context.CancelFunc
 
+// Firefox launches a Firefox browser instance in the container
+// and returns a browser object that can be used to create pages,
+// navigate to websites, and perform browser automation.
+//
+// The connection to the browser is established via WebSockets.
+// You should call browser.Close() when you're done with the browser.
+// The API of the returned browser object is the Playwright API.
 func Firefox() (playwright.Browser, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -60,6 +74,13 @@ func Firefox() (playwright.Browser, error) {
 var webkit string
 var webkitCancel context.CancelFunc
 
+// Webkit launches a WebKit browser instance in the container
+// and returns a browser object that can be used to create pages,
+// navigate to websites, and perform browser automation.
+//
+// The connection to the browser is established via WebSockets.
+// You should call browser.Close() when you're done with the browser.
+// The API of the returned browser object is the Playwright API.
 func Webkit() (playwright.Browser, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
