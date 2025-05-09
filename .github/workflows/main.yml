@@ -112,6 +112,7 @@ jobs:
           push-to-registry: true
 
   deploy-gh-pages:
+    needs: ci
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
