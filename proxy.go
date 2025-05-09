@@ -58,6 +58,13 @@ func transparentProxy(retry int, sleeping time.Duration) (string, int, func()) {
 	}
 }
 
+// Wait4Port checks if a network service is available at the given address.
+// It retries according to the provided options.
+// This is useful for ensuring that servers are ready before connecting to them.
+//
+// Parameters:
+//   - addr: The URL to check (e.g. "http://localhost:8080")
+//   - opts: Configuration options for retries and timeout
 func Wait4Port(addr string, opts ...Option) error {
 	c := &config{
 		sleeping: 200 * time.Millisecond,
@@ -94,6 +101,8 @@ func Wait4Port(addr string, opts ...Option) error {
 	return fmt.Errorf("could not connect to %s after retry and timeout", addr)
 }
 
+// SleepWithContext sleeps for the specified duration or until the context is canceled.
+// It returns nil if the sleep completes or the context's error if canceled early.
 func SleepWithContext(ctx context.Context, d time.Duration) error {
 	select {
 	case <-time.After(d):

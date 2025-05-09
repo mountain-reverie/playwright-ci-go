@@ -112,6 +112,7 @@ func new(version string, opts ...Option) (*container, error) {
 	}, nil
 }
 
+// Close terminates the container and cleans up associated resources.
 func (c *container) Close() error {
 	if err := c.browsers.Terminate(context.Background()); err != nil {
 		return fmt.Errorf("could not terminate browser container: %w", err)
@@ -121,6 +122,9 @@ func (c *container) Close() error {
 	return nil
 }
 
+// Exec executes a browser command in the container and returns a WebSocket connection URL.
+// The browser parameter should be one of: "chromium", "firefox", or "webkit".
+// It also returns a cancel function to terminate the browser session.
 func (c *container) Exec(browser string, containerPort int) (string, context.CancelFunc, error) {
 	execCtx, execCancel := context.WithCancel(c.context)
 	go func() {
