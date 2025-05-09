@@ -112,6 +112,9 @@ jobs:
           push-to-registry: true
 
   deploy-gh-pages:
+    concurrency:
+      group: 'pages'
+      cancel-in-progress: true
     needs: ci
     environment:
       name: github-pages
