@@ -160,6 +160,42 @@ jobs:
               tests.json
               coverage.out
               cpu.profile
+        
+        - name: Generate HTML report
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          run: |
+            mkdir -p html
+            go tool cover -html=coverage.out -o html/coverage.html
+
+        - name: Get coverage percentage
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          id: coverage
+          run: |
+            PERCENTAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | tr -d '%\n')
+            echo "$PERCENTAGE% code coverage"
+            echo "PERCENTAGE=$PERCENTAGE" >> $GITHUB_OUTPUT
+
+        - name: Generate badge
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          env:
+            PERCENTAGE: ${{ steps.coverage.outputs.PERCENTAGE }}
+            YELLOW: ${{ steps.coverage.outputs.PERCENTAGE >= 60 }}
+            GREEN: ${{ steps.coverage.outputs.PERCENTAGE >= 80 }}
+          run: |
+            COLOR="red"
+            if [[ ${YELLOW} -eq true ]]; then
+              COLOR="yellow"
+            fi
+            if [[ ${GREEN} -eq true ]]; then
+              COLOR="green"
+            fi
+            curl "https://img.shields.io/badge/coverage-${PERCENTAGE}%25-${COLOR}" > html/coverage-badge.svg
+
+        - name: Generate GitHub Pages report
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # or specific "vX.X.X" version tag for this action
+          with:
+            path: html
 
 # Turned off due to https://github.com/fgrosse/go-coverage-report/issues/5
 #        - name: Code coverage report
