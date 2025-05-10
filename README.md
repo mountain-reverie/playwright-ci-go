@@ -1,6 +1,7 @@
 # playwright-ci-go
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/mountain-reverie/playwright-ci-go.svg)](https://pkg.go.dev/github.com/mountain-reverie/playwright-ci-go)
+[![Coverage](https://mountain-reverie.github.io/playwright-ci-go/coverage-badge.svg)](https://mountain-reverie.github.io/playwright-ci-go/coverage.html#file0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://github.com/mountain-reverie/playwright-ci-go/actions/workflows/main.yml/badge.svg)](https://github.com/mountain-reverie/playwright-ci-go/actions)
 
