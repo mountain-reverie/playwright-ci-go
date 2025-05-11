@@ -18,10 +18,6 @@ jobs:
           uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9
 
     tests:
-      permissions:
-#        pull-requests: write
-        security-events: write
-        packages: read
       defaults:
         run:
           shell: bash
@@ -163,9 +159,39 @@ jobs:
             path: ~/go/bin/goteststats
 
         - name: Install goteststats
-          if: steps.cache-goteststats.outputs.cache-hit != 'true'
+          if: ${{ steps.cache-goteststats.outputs.cache-hit != 'true' }}
           run: |
             go install github.com/getvictor/goteststats@latest
+
+        - name: Fetch golang-cover-diff @main SHA-1
+          id: golang-cover-diff-main
+          run: |
+            sha1=$(curl \
+              --header "Accept: application/vnd.github+json" \
+              --silent \
+                https://api.github.com/repos/flipgroup/golang-cover-diff/branches/main | \
+                  jq --raw-output ".commit.sha")
+            echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
+
+        - name: Cache golang-cover-diff
+          id: cache-golang-cover-diff
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          uses: actions/cache@v4
+          with:
+            key: golang-cover-diff-${{ matrix.platform }}-sha1-${{ steps.golang-cover-diff-main.outputs.sha1 }}
+            path: ~/go/bin/golang-cover-diff
+        - name: Install golang-cover-diff
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' && steps.cache-golang-cover-diff.outputs.cache-hit != 'true' }}
+          run: go install github.com/flipgroup/golang-cover-diff@main
+
+        - name: Generate golang-cover-diff report
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' && github.event_name == 'pull_request' }}
+          env:
+            GITHUB_PULL_REQUEST_ID: ${{ github.event.number }}
+            GITHUB_TOKEN: ${{ github.token }}
+          run: |
+            curl https://mountain-reverie.github.io/playwright-ci-go/coverage.out -o coverage-main.out
+            golang-cover-diff coverage-main.out html/coverage.out
 
         - name: Generate goteststats report
           run: |
