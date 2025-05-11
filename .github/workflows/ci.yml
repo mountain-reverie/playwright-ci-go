@@ -145,8 +145,25 @@ jobs:
           uses: github/codeql-action/analyze@v3
           with:
             category: "/language:go"
+          
+        - name: Fetch goteststats @main SHA-1
+          id: goteststats-main
+          run: |
+            sha1=$(curl \
+              --header "Accept: application/vnd.github+json" \
+              --silent \
+                https://api.github.com/repos/getvictor/goteststats/branches/main | \
+                  jq --raw-output ".commit.sha")
+            echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
+        - name: Cache goteststats
+          id: cache-goteststats
+          uses: actions/cache@v4
+          with:
+            key: goteststats-${{ matrix.platform }}-sha1-${{ steps.goteststats-main.outputs.sha1 }}
+            path: ~/go/bin/goteststats
 
         - name: Install goteststats
+          if: steps.cache-goteststats.outputs.cache-hit != 'true'
           run: |
             go install github.com/getvictor/goteststats@latest
 
