@@ -184,7 +184,7 @@ jobs:
             path: ~/go/bin/golang-cover-diff
         - name: Install golang-cover-diff
           if: steps.cache-golang-cover-diff.outputs.cache-hit != 'true'
-          run: go install github.com/paper-indonesia/golang-cover-diff@main
+          run: go install github.com/flipgroup/golang-cover-diff@main
 
         - name: Generate golang-cover-diff report
           if: github.event_name == 'pull_request'
