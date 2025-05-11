@@ -135,9 +135,10 @@ jobs:
 
         - name: Run tests
           run: |
+            mkdir -p html
             export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
             export PLAYWRIGHTCI_TAG=${{ github.sha }}
-            gotestsum --jsonfile tests.json -- -covermode=atomic -coverprofile="coverage.out" -cpuprofile="cpu.profile" .
+            gotestsum --jsonfile tests.json -- -covermode=atomic -coverprofile="html/coverage.out" -cpuprofile="cpu.profile" .
 
         - name: Perform CodeQL Analysis
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
@@ -158,20 +159,19 @@ jobs:
             name: "Tests analytics on ${{ matrix.platform}}"
             path: |
               tests.json
-              coverage.out
+              html/coverage.out
               cpu.profile
         
         - name: Generate HTML report
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
           run: |
-            mkdir -p html
-            go tool cover -html=coverage.out -o html/coverage.html
+            go tool cover -html=html/coverage.out -o html/coverage.html
 
         - name: Get coverage percentage
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
           id: coverage
           run: |
-            PERCENTAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | tr -d '%\n')
+            PERCENTAGE=$(go tool cover -func=html/coverage.out | grep total: | awk '{print $3}' | tr -d '%\n')
             echo "$PERCENTAGE% code coverage"
             echo "PERCENTAGE=$PERCENTAGE" >> $GITHUB_OUTPUT
 
