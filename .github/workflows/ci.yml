@@ -18,10 +18,6 @@ jobs:
           uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9
 
     tests:
-      permissions:
-#        pull-requests: write
-        security-events: write
-        packages: read
       defaults:
         run:
           shell: bash

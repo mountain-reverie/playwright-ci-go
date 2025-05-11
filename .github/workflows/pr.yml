@@ -21,6 +21,7 @@ on:
 permissions:
   security-events: write
   packages: read
+  pull-requests: write
 
 jobs:
   ci:
