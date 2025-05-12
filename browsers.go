@@ -3,12 +3,70 @@ package playwrightcigo
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/playwright-community/playwright-go"
 )
 
-var chromium string
-var chromiumCancel context.CancelFunc
+var mutexBrowser sync.Mutex
+
+type browser struct {
+	instanceOf   string
+	instancePort int
+	uri          string
+	cancel       context.CancelFunc
+	count        int
+}
+
+func (b *browser) connect() (playwright.Browser, error) {
+	mutexBrowser.Lock()
+	defer mutexBrowser.Unlock()
+
+	if b.count > 0 {
+		b.count++
+		return connect(b.instanceOf, b.uri)
+	}
+
+	if browsers == nil {
+		return nil, fmt.Errorf("container is not running")
+	}
+
+	uri, cancel, err := browsers.Exec(b.instanceOf, b.instancePort)
+	if err != nil {
+		return nil, fmt.Errorf("could not exec chromium: %w", err)
+	}
+	b.uri = uri
+	b.cancel = func() {
+		mutexBrowser.Lock()
+		defer mutexBrowser.Unlock()
+
+		b.count--
+		if b.count == 0 {
+			cancel()
+		}
+	}
+	b.count++
+
+	return connect(b.instanceOf, b.uri)
+}
+
+func connect(instanceOf, uri string) (playwright.Browser, error) {
+	switch instanceOf {
+	case "chromium":
+		return pw.Chromium.Connect(uri)
+	case "firefox":
+		return pw.Firefox.Connect(uri)
+	case "webkit":
+		return pw.WebKit.Connect(uri)
+	default:
+		return nil, fmt.Errorf("unknown browser instance: %s", instanceOf)
+	}
+}
+
+var chromium = browser{
+	instanceOf:   "chromium",
+	instancePort: 1024 + 3,
+}
 
 // Chromium launches a Chromium browser instance in the container
 // and returns a browser object that can be used to create pages,
@@ -18,29 +76,13 @@ var chromiumCancel context.CancelFunc
 // You should call browser.Close() when you're done with the browser.
 // The API of the returned browser object is the Playwright API.
 func Chromium() (playwright.Browser, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if chromium != "" {
-		return pw.Chromium.Connect(chromium)
-	}
-
-	if browsers == nil {
-		return nil, fmt.Errorf("container is not running")
-	}
-
-	uri, cancel, err := browsers.Exec("chromium", 1024+3)
-	if err != nil {
-		return nil, fmt.Errorf("could not exec chromium: %w", err)
-	}
-	chromium = uri
-	chromiumCancel = cancel
-
-	return pw.Chromium.Connect(chromium)
+	return chromium.connect()
 }
 
-var firefox string
-var firefoxCancel context.CancelFunc
+var firefox = browser{
+	instanceOf:   "firefox",
+	instancePort: 1024 + 1,
+}
 
 // Firefox launches a Firefox browser instance in the container
 // and returns a browser object that can be used to create pages,
@@ -50,29 +92,13 @@ var firefoxCancel context.CancelFunc
 // You should call browser.Close() when you're done with the browser.
 // The API of the returned browser object is the Playwright API.
 func Firefox() (playwright.Browser, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if firefox != "" {
-		return pw.Firefox.Connect(firefox)
-	}
-
-	if browsers == nil {
-		return nil, fmt.Errorf("container is not running")
-	}
-
-	uri, cancel, err := browsers.Exec("firefox", 1024+1)
-	if err != nil {
-		return nil, fmt.Errorf("could not exec firefox: %w", err)
-	}
-	firefox = uri
-	firefoxCancel = cancel
-
-	return pw.Firefox.Connect(firefox)
+	return firefox.connect()
 }
 
-var webkit string
-var webkitCancel context.CancelFunc
+var webkit = browser{
+	instanceOf:   "webkit",
+	instancePort: 1024 + 2,
+}
 
 // Webkit launches a WebKit browser instance in the container
 // and returns a browser object that can be used to create pages,
@@ -82,23 +108,5 @@ var webkitCancel context.CancelFunc
 // You should call browser.Close() when you're done with the browser.
 // The API of the returned browser object is the Playwright API.
 func Webkit() (playwright.Browser, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	if webkit != "" {
-		return pw.WebKit.Connect(webkit)
-	}
-
-	if browsers == nil {
-		return nil, fmt.Errorf("container is not running")
-	}
-
-	uri, cancel, err := browsers.Exec("webkit", 1024+2)
-	if err != nil {
-		return nil, fmt.Errorf("could not exec webkit: %w", err)
-	}
-	webkit = uri
-	webkitCancel = cancel
-
-	return pw.WebKit.Connect(webkit)
+	return webkit.connect()
 }

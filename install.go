@@ -4,7 +4,6 @@ package playwrightcigo
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/playwright-community/playwright-go"
@@ -27,32 +26,32 @@ func Install(opts ...Option) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if pw != nil {
+	if count > 0 {
 		count++
 		return nil
 	}
 
 	if err := playwright.Install(); err != nil {
-		log.Fatalf("could not install Playwright: %v", err)
+		return fmt.Errorf("error while installing playwright: %w", err)
 	}
 
 	driver, err := playwright.NewDriver(&playwright.RunOptions{SkipInstallBrowsers: true})
 	if err != nil {
-		log.Fatalf("Could not create playwright driver: %s", err)
+		return fmt.Errorf("error while setting up driver: %w", err)
 	}
 
 	if err := driver.Install(); err != nil {
-		log.Fatalf("Could not install playwright: %s", err)
+		return fmt.Errorf("error while installing driver: %w", err)
 	}
 
 	pw, err = playwright.Run()
 	if err != nil {
-		log.Fatalf("Could not run playwright: %s", err)
+		return fmt.Errorf("error while starting to run playwright: %w", err)
 	}
 
 	browsers, err = new(driver.Version, opts...)
 	if err != nil {
-		log.Fatalf("Could not create container: %s", err)
+		return err
 	}
 
 	count++
@@ -64,10 +63,6 @@ func Install(opts ...Option) error {
 // There should be as many calls to Uninstall as there were calls to Install.
 // Generally you want to call this in your TestMain function.
 func Uninstall() error {
-	if pw == nil {
-		return nil
-	}
-
 	mutex.Lock()
 	defer mutex.Unlock()
 	count--
@@ -75,17 +70,14 @@ func Uninstall() error {
 		return nil
 	}
 
-	if chromium != "" {
-		chromiumCancel()
-		chromium = ""
+	for chromium.count > 0 {
+		chromium.cancel()
 	}
-	if firefox != "" {
-		firefoxCancel()
-		firefox = ""
+	for firefox.count > 0 {
+		firefox.cancel()
 	}
-	if webkit != "" {
-		webkitCancel()
-		webkit = ""
+	for webkit.count > 0 {
+		webkit.cancel()
 	}
 
 	if err := browsers.Close(); err != nil {
