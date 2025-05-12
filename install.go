@@ -70,17 +70,14 @@ func Uninstall() error {
 		return nil
 	}
 
-	for chromiumCount > 0 {
-		chromiumCancel()
-		chromium = ""
+	for chromium.count > 0 {
+		chromium.cancel()
 	}
-	for firefoxCount > 0 {
-		firefoxCancel()
-		firefox = ""
+	for firefox.count > 0 {
+		firefox.cancel()
 	}
-	for webkitCount > 0 {
-		webkitCancel()
-		webkit = ""
+	for webkit.count > 0 {
+		webkit.cancel()
 	}
 
 	if err := browsers.Close(); err != nil {
