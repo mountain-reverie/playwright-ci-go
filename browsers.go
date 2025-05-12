@@ -51,15 +51,16 @@ func (b *browser) connect() (playwright.Browser, error) {
 }
 
 func connect(instanceOf, uri string) (playwright.Browser, error) {
-	if instanceOf == "chromium" {
+	switch instanceOf {
+	case "chromium":
 		return pw.Chromium.Connect(uri)
-	} else if instanceOf == "firefox" {
+	case "firefox":
 		return pw.Firefox.Connect(uri)
-	} else if instanceOf == "webkit" {
+	case "webkit":
 		return pw.WebKit.Connect(uri)
+	default:
+		return nil, fmt.Errorf("unknown browser instance: %s", instanceOf)
 	}
-
-	return nil, fmt.Errorf("unknown browser instance: %s", instanceOf)
 }
 
 var chromium = browser{
