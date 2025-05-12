@@ -3,12 +3,16 @@ package playwrightcigo
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/playwright-community/playwright-go"
 )
 
+var mutexBrowser sync.Mutex
+
 var chromium string
 var chromiumCancel context.CancelFunc
+var chromiumCount int
 
 // Chromium launches a Chromium browser instance in the container
 // and returns a browser object that can be used to create pages,
@@ -18,10 +22,11 @@ var chromiumCancel context.CancelFunc
 // You should call browser.Close() when you're done with the browser.
 // The API of the returned browser object is the Playwright API.
 func Chromium() (playwright.Browser, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	mutexBrowser.Lock()
+	defer mutexBrowser.Unlock()
 
-	if chromium != "" {
+	if chromiumCount > 0 {
+		chromiumCount++
 		return pw.Chromium.Connect(chromium)
 	}
 
@@ -34,13 +39,24 @@ func Chromium() (playwright.Browser, error) {
 		return nil, fmt.Errorf("could not exec chromium: %w", err)
 	}
 	chromium = uri
-	chromiumCancel = cancel
+	chromiumCancel = func() {
+		mutexBrowser.Lock()
+		defer mutexBrowser.Unlock()
+
+		chromiumCount--
+		if chromiumCount == 0 {
+			chromium = ""
+			cancel()
+		}
+	}
+	chromiumCount++
 
 	return pw.Chromium.Connect(chromium)
 }
 
 var firefox string
 var firefoxCancel context.CancelFunc
+var firefoxCount int
 
 // Firefox launches a Firefox browser instance in the container
 // and returns a browser object that can be used to create pages,
@@ -50,10 +66,11 @@ var firefoxCancel context.CancelFunc
 // You should call browser.Close() when you're done with the browser.
 // The API of the returned browser object is the Playwright API.
 func Firefox() (playwright.Browser, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	mutexBrowser.Lock()
+	defer mutexBrowser.Unlock()
 
-	if firefox != "" {
+	if firefoxCount > 0 {
+		firefoxCount++
 		return pw.Firefox.Connect(firefox)
 	}
 
@@ -66,13 +83,24 @@ func Firefox() (playwright.Browser, error) {
 		return nil, fmt.Errorf("could not exec firefox: %w", err)
 	}
 	firefox = uri
-	firefoxCancel = cancel
+	firefoxCancel = func() {
+		mutexBrowser.Lock()
+		defer mutexBrowser.Unlock()
+
+		firefoxCount--
+		if firefoxCount == 0 {
+			firefox = ""
+			cancel()
+		}
+	}
+	firefoxCount++
 
 	return pw.Firefox.Connect(firefox)
 }
 
 var webkit string
 var webkitCancel context.CancelFunc
+var webkitCount int
 
 // Webkit launches a WebKit browser instance in the container
 // and returns a browser object that can be used to create pages,
@@ -82,10 +110,11 @@ var webkitCancel context.CancelFunc
 // You should call browser.Close() when you're done with the browser.
 // The API of the returned browser object is the Playwright API.
 func Webkit() (playwright.Browser, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	mutexBrowser.Lock()
+	defer mutexBrowser.Unlock()
 
-	if webkit != "" {
+	if webkitCount > 0 {
+		webkitCount++
 		return pw.WebKit.Connect(webkit)
 	}
 
@@ -98,7 +127,17 @@ func Webkit() (playwright.Browser, error) {
 		return nil, fmt.Errorf("could not exec webkit: %w", err)
 	}
 	webkit = uri
-	webkitCancel = cancel
+	webkitCancel = func() {
+		mutexBrowser.Lock()
+		defer mutexBrowser.Unlock()
+
+		webkitCount--
+		if webkitCount == 0 {
+			webkit = ""
+			cancel()
+		}
+	}
+	webkitCount++
 
 	return pw.WebKit.Connect(webkit)
 }

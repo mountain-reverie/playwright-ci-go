@@ -26,7 +26,7 @@ func Install(opts ...Option) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if pw != nil {
+	if count > 0 {
 		count++
 		return nil
 	}
@@ -63,10 +63,6 @@ func Install(opts ...Option) error {
 // There should be as many calls to Uninstall as there were calls to Install.
 // Generally you want to call this in your TestMain function.
 func Uninstall() error {
-	if pw == nil {
-		return nil
-	}
-
 	mutex.Lock()
 	defer mutex.Unlock()
 	count--
@@ -74,15 +70,15 @@ func Uninstall() error {
 		return nil
 	}
 
-	if chromium != "" {
+	for chromiumCount > 0 {
 		chromiumCancel()
 		chromium = ""
 	}
-	if firefox != "" {
+	for firefoxCount > 0 {
 		firefoxCancel()
 		firefox = ""
 	}
-	if webkit != "" {
+	for webkitCount > 0 {
 		webkitCancel()
 		webkit = ""
 	}
