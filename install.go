@@ -4,7 +4,6 @@ package playwrightcigo
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/playwright-community/playwright-go"
@@ -33,26 +32,26 @@ func Install(opts ...Option) error {
 	}
 
 	if err := playwright.Install(); err != nil {
-		log.Fatalf("could not install Playwright: %v", err)
+		return fmt.Errorf("error while installing playwright: %w", err)
 	}
 
 	driver, err := playwright.NewDriver(&playwright.RunOptions{SkipInstallBrowsers: true})
 	if err != nil {
-		log.Fatalf("Could not create playwright driver: %s", err)
+		return fmt.Errorf("error while setting up driver: %w", err)
 	}
 
 	if err := driver.Install(); err != nil {
-		log.Fatalf("Could not install playwright: %s", err)
+		return fmt.Errorf("error while installing driver: %w", err)
 	}
 
 	pw, err = playwright.Run()
 	if err != nil {
-		log.Fatalf("Could not run playwright: %s", err)
+		return fmt.Errorf("error while starting to run playwright: %w", err)
 	}
 
 	browsers, err = new(driver.Version, opts...)
 	if err != nil {
-		log.Fatalf("Could not create container: %s", err)
+		return err
 	}
 
 	count++
