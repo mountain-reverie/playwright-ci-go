@@ -59,6 +59,9 @@ func Test_HelloWorld(t *testing.T) {
 		t.Run(test.browser, func(t *testing.T) {
 			t.Parallel()
 
+			err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(time.Minute))
+			require.NoError(t, err)
+
 			browser, err := test.instantiate()
 			require.NoError(t, err)
 
@@ -97,6 +100,9 @@ func Test_HelloWorld(t *testing.T) {
 			require.NoError(t, err)
 
 			err = browser.Close()
+			require.NoError(t, err)
+
+			err = Uninstall()
 			require.NoError(t, err)
 		})
 	}
@@ -141,6 +147,12 @@ func Test_OverlapLifecycle(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.browser, func(t *testing.T) {
 			t.Parallel()
+
+			// Ideally, you want to run Install/Uninstall in TestMain once, not in every test.
+			// But we want code coverage to actually cover Install/Uninstall, this is specific
+			// to this module.
+			err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(time.Minute))
+			require.NoError(t, err)
 
 			browser1, err := test.instantiate()
 			require.NoError(t, err)
@@ -215,6 +227,9 @@ func Test_OverlapLifecycle(t *testing.T) {
 
 			err = browser2.Close()
 			require.NoError(t, err)
+
+			err = Uninstall()
+			require.NoError(t, err)
 		})
 	}
 }
@@ -224,16 +239,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("could not create directory: %v", err)
 	}
 
-	if err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(time.Minute)); err != nil {
-		log.Fatalf("could not install playwright ci: %v", err)
-	}
-
-	code := m.Run()
-
-	if err := Uninstall(); err != nil {
-		log.Fatalf("could not uninstall playwright ci: %v", err)
-	}
-	os.Exit(code)
+	os.Exit(m.Run())
 }
 
 func pixels(t *testing.T, path string) (image.Rectangle, []uint8) {
