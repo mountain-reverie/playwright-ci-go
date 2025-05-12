@@ -76,7 +76,7 @@ func Test_HelloWorld(t *testing.T) {
 
 			require.Contains(t, content, "Hello World!")
 
-			testresult := filepath.Join("testdata", "failed", fmt.Sprintf("screenshot-%s.png", test.browser))
+			testresult := filepath.Join("testdata", "failed", fmt.Sprintf("screenshot-helloworld-%s.png", test.browser))
 
 			err = page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateLoad})
 			assert.NoError(t, err)
@@ -180,7 +180,7 @@ func Test_OverlapLifecycle(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, content2, "Hello World!")
 
-			testresult := filepath.Join("testdata", "failed", fmt.Sprintf("screenshot-%s.png", test.browser))
+			testresult := filepath.Join("testdata", "failed", fmt.Sprintf("screenshot-overlap-%s.png", test.browser))
 			err = page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateLoad})
 			assert.NoError(t, err)
 
