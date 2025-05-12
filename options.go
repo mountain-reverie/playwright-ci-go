@@ -44,7 +44,7 @@ func WithRetry(count int) Option {
 	})
 }
 
-// WithSleeping sets the sleep duration between retry attempts.
+// WithSleeping sets the sleep duration between retry attempts when setting up the proxy.
 // The default is 200 milliseconds.
 func WithSleeping(sleeping time.Duration) Option {
 	return optionFunc(func(c *config) {
