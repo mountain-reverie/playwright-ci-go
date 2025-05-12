@@ -137,16 +137,19 @@ func Test_OverlapLifecycle(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		browser     string
-		instantiate func() (playwright.Browser, error)
+		browser      string
+		instantiate  func() (playwright.Browser, error)
+		notSupported bool
 	}{
-		{"chromium", Chromium},
-		{"firefox", Firefox},
-		{"webkit", Webkit},
+		{"chromium", Chromium, false},
+		{"firefox", Firefox, true}, // Firefox will fail in this test case by deadlocking, so currently generate an error
+		{"webkit", Webkit, false},
 	}
 	for _, test := range tests {
 		t.Run(test.browser, func(t *testing.T) {
-			t.Parallel()
+			if !test.notSupported {
+				t.Parallel()
+			}
 
 			// Ideally, you want to run Install/Uninstall in TestMain once, not in every test.
 			// But we want code coverage to actually cover Install/Uninstall, this is specific
