@@ -55,60 +55,9 @@ func new(version string, opts ...Option) (*container, error) {
 
 	found := false
 
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, deps := range info.Deps {
-			fmt.Println("Dependency:", deps.Path, "Version:", deps.Version)
-			if strings.Contains(deps.Path, "github.com/mountain-reverie/playwright-ci-go") {
-				if len(deps.Version) > 0 && deps.Version[0] == 'v' {
-					imageVersion = deps.Version
-					found = true
-					log.Println("Using version from build info:", imageVersion)
-					break
-				}
-			}
-		}
-	}
-
+	found, imageVersion = getPlaywrightCIGoFromBuildInfo(imageVersion)
 	if !found {
-		cmd := exec.Command("go", "list", "-json", "-m", "all")
-		output, err := cmd.StdoutPipe()
-		if err != nil {
-			return nil, fmt.Errorf("could not get stdout pipe: %w", err)
-		}
-
-		if err := cmd.Start(); err != nil {
-			return nil, fmt.Errorf("could not start command: %w", err)
-		}
-		defer func() {
-			_ = cmd.Wait()
-		}()
-
-		decoder := json.NewDecoder(output)
-
-		for {
-			var mod module
-			if err := decoder.Decode(&mod); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return nil, fmt.Errorf("could not decode module: %w", err)
-			}
-			if strings.Contains(mod.Path, "github.com/mountain-reverie/playwright-ci-go") {
-				if mod.Main {
-					found, imageVersion = getPlaywrightCIGoGitVersion(imageVersion)
-					break
-				} else if len(mod.Version) > 0 && mod.Version[0] == 'v' {
-					found = true
-					imageVersion = mod.Version
-					log.Println("Using version from go list:", imageVersion)
-					break
-				}
-			}
-		}
-
-		if !found {
-			log.Println("No build, module or git info found. Keeping version as:", imageVersion)
-		}
+		_, imageVersion = getPlaywrightCIGoFromGoList(imageVersion)
 	}
 
 	c := &config{
@@ -232,4 +181,63 @@ func getPlaywrightCIGoGitVersion(imageVersion string) (bool, string) {
 	imageVersion = strings.TrimSpace(string(output))
 	log.Println("Using version from git:", imageVersion)
 	return true, imageVersion
+}
+
+func getPlaywrightCIGoFromBuildInfo(imageVersion string) (bool, string) {
+	if info, ok := debug.ReadBuildInfo(); !ok {
+		for _, deps := range info.Deps {
+			if strings.Contains(deps.Path, "github.com/mountain-reverie/playwright-ci-go") {
+				if len(deps.Version) > 0 && deps.Version[0] == 'v' {
+					log.Println("Using version from build info:", deps.Version)
+					return true, deps.Version
+				}
+			}
+		}
+	}
+
+	return false, imageVersion
+}
+
+func getPlaywrightCIGoFromGoList(imageVersion string) (bool, string) {
+	cmd := exec.Command("go", "list", "-json", "-m", "all")
+	output, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Println("could not get stdout pipe: %w", err)
+		return false, imageVersion
+	}
+
+	if err := cmd.Start(); err != nil {
+		log.Println("could not start command: %w", err)
+		return false, imageVersion
+	}
+	defer func() {
+		_ = cmd.Wait()
+	}()
+
+	decoder := json.NewDecoder(output)
+
+	for {
+		var mod module
+		if err := decoder.Decode(&mod); err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Println("could not decode module: %w", err)
+			return false, imageVersion
+		}
+		if strings.Contains(mod.Path, "github.com/mountain-reverie/playwright-ci-go") {
+			if mod.Main {
+				return getPlaywrightCIGoGitVersion(imageVersion)
+			} else if len(mod.Version) > 0 && mod.Version[0] == 'v' {
+				log.Println("Using version from go list:", mod.Version)
+				return true, mod.Version
+			} else {
+				log.Println("No version found in go list for playwright-ci-go module")
+				return false, imageVersion
+			}
+		}
+	}
+
+	log.Println("No build, module or git info found. Keeping version as:", imageVersion)
+	return false, imageVersion
 }
