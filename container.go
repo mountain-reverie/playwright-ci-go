@@ -172,13 +172,22 @@ func port(ctx context.Context, container testcontainers.Container, host string, 
 	return p.Int(), nil
 }
 
+func filterVersion(version string) string {
+	parts := strings.Split(version, "-")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+
+	return version
+}
+
 func getPlaywrightCIGoGitVersion(imageVersion string) (bool, string) {
 	cmd := exec.Command("git", "describe", "--tags")
 	output, err := cmd.Output()
 	if err != nil {
 		return false, imageVersion
 	}
-	imageVersion = strings.TrimSpace(string(output))
+	imageVersion = filterVersion(strings.TrimSpace(string(output)))
 	log.Println("Using version from git:", imageVersion)
 	return true, imageVersion
 }
