@@ -2,9 +2,11 @@ package playwrightcigo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"os/exec"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -33,6 +35,12 @@ type container struct {
 	terminate  func()
 }
 
+type module struct {
+	Path    string
+	Version string
+	Main    bool
+}
+
 func new(version string, opts ...Option) (*container, error) {
 	splitted := strings.Split(version, ".")
 	if len(splitted) != 3 {
@@ -45,8 +53,9 @@ func new(version string, opts ...Option) (*container, error) {
 		imageVersion = "v0.5101.1"
 	}
 
+	found := false
+
 	if info, ok := debug.ReadBuildInfo(); ok {
-		found := false
 		for _, deps := range info.Deps {
 			fmt.Println("Dependency:", deps.Path, "Version:", deps.Version)
 			if strings.Contains(deps.Path, "github.com/mountain-reverie/playwright-ci-go") {
@@ -58,11 +67,53 @@ func new(version string, opts ...Option) (*container, error) {
 				}
 			}
 		}
-		if !found {
-			log.Println("No version found in build info. Using default version:", imageVersion)
+	}
+
+	if !found {
+		cmd := exec.Command("go", "list", "-json", "-m", "all")
+		output, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, fmt.Errorf("could not get stdout pipe: %w", err)
 		}
-	} else {
-		log.Println("No build info found. Keeping version as:", imageVersion)
+
+		if err := cmd.Start(); err != nil {
+			return nil, fmt.Errorf("could not start command: %w", err)
+		}
+		defer cmd.Wait()
+
+		decoder := json.NewDecoder(output)
+
+		for {
+			var mod module
+			if err := decoder.Decode(&mod); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return nil, fmt.Errorf("could not decode module: %w", err)
+			}
+			if strings.Contains(mod.Path, "github.com/mountain-reverie/playwright-ci-go") {
+				if mod.Main {
+					found = true
+					cmd := exec.Command("git", "describe", "--tags")
+					output, err := cmd.Output()
+					if err != nil {
+						return nil, fmt.Errorf("could not get git version: %w", err)
+					}
+					imageVersion = strings.TrimSpace(string(output))
+					log.Println("Using version from git:", imageVersion)
+					break
+				} else if len(mod.Version) > 0 && mod.Version[0] == 'v' {
+					found = true
+					imageVersion = mod.Version
+					log.Println("Using version from go list:", imageVersion)
+					break
+				}
+			}
+		}
+
+		if !found {
+			log.Println("No build, module or git info found. Keeping version as:", imageVersion)
+		}
 	}
 
 	c := &config{
