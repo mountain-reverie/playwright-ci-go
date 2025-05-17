@@ -79,7 +79,9 @@ func new(version string, opts ...Option) (*container, error) {
 		if err := cmd.Start(); err != nil {
 			return nil, fmt.Errorf("could not start command: %w", err)
 		}
-		defer cmd.Wait()
+		defer func() {
+			_ = cmd.Wait()
+		}()
 
 		decoder := json.NewDecoder(output)
 
