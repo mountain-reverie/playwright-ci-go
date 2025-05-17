@@ -239,6 +239,13 @@ jobs:
           uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # or specific "vX.X.X" version tag for this action
           with:
             path: html
+        
+        - name: Upload failed tests result
+          if: ${{ failure() }}
+          uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+          with:
+            name: "Failed tests on ${{ matrix.platform}}"
+            path: testdata/failed/
 
 # Turned off due to https://github.com/fgrosse/go-coverage-report/issues/5
 #        - name: Code coverage report
