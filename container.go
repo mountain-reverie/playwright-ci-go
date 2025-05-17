@@ -211,18 +211,22 @@ func getPlaywrightCIGoFromGoList(imageVersion string) (bool, string) {
 	cmd := exec.Command("go", "list", "-json", "-m", "all")
 	output, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Println("could not get stdout pipe: %w", err)
+		log.Printf("could not get stdout pipe: %v\n", err)
 		return false, imageVersion
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Println("could not start command: %w", err)
+		log.Printf("could not start command: %v\n", err)
 		return false, imageVersion
 	}
 	defer func() {
 		_ = cmd.Wait()
 	}()
 
+	return parseGoListJSONStream(output, imageVersion)
+}
+
+func parseGoListJSONStream(output io.Reader, imageVersion string) (bool, string) {
 	decoder := json.NewDecoder(output)
 
 	for {
@@ -231,7 +235,7 @@ func getPlaywrightCIGoFromGoList(imageVersion string) (bool, string) {
 			if err == io.EOF {
 				break
 			}
-			log.Println("could not decode module: %w", err)
+			log.Printf("could not decode module: %v\n", err)
 			return false, imageVersion
 		}
 		if strings.Contains(mod.Path, "github.com/mountain-reverie/playwright-ci-go") {
