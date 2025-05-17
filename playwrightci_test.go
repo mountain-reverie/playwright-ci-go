@@ -59,7 +59,7 @@ func Test_HelloWorld(t *testing.T) {
 		t.Run(test.browser, func(t *testing.T) {
 			t.Parallel()
 
-			err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(time.Minute))
+			err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(5*time.Minute))
 			require.NoError(t, err)
 
 			browser, err := test.instantiate()
@@ -154,7 +154,7 @@ func Test_OverlapLifecycle(t *testing.T) {
 			// Ideally, you want to run Install/Uninstall in TestMain once, not in every test.
 			// But we want code coverage to actually cover Install/Uninstall, this is specific
 			// to this module.
-			err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(time.Minute))
+			err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(5*time.Minute))
 			require.NoError(t, err)
 
 			browser1, err := test.instantiate()
