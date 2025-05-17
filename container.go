@@ -93,14 +93,7 @@ func new(version string, opts ...Option) (*container, error) {
 			}
 			if strings.Contains(mod.Path, "github.com/mountain-reverie/playwright-ci-go") {
 				if mod.Main {
-					found = true
-					cmd := exec.Command("git", "describe", "--tags")
-					output, err := cmd.Output()
-					if err != nil {
-						return nil, fmt.Errorf("could not get git version: %w", err)
-					}
-					imageVersion = strings.TrimSpace(string(output))
-					log.Println("Using version from git:", imageVersion)
+					found, imageVersion = getPlaywrightCIGoGitVersion(imageVersion)
 					break
 				} else if len(mod.Version) > 0 && mod.Version[0] == 'v' {
 					found = true
@@ -226,4 +219,15 @@ func port(ctx context.Context, container testcontainers.Container, host string, 
 		return 0, fmt.Errorf("timeout, could not connect to browser container: %w", err)
 	}
 	return p.Int(), nil
+}
+
+func getPlaywrightCIGoGitVersion(imageVersion string) (bool, string) {
+	cmd := exec.Command("git", "describe", "--tags")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, imageVersion
+	}
+	imageVersion = strings.TrimSpace(string(output))
+	log.Println("Using version from git:", imageVersion)
+	return true, imageVersion
 }
