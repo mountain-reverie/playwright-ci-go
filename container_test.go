@@ -10,7 +10,6 @@ import (
 func Test_parseGoListJSONStreamEmpty(t *testing.T) {
 	t.Parallel()
 
-	// Test with an empty JSON stream
 	jsonStream := ``
 
 	found, result := parseGoListJSONStream(strings.NewReader(jsonStream), "none")
@@ -21,7 +20,6 @@ func Test_parseGoListJSONStreamEmpty(t *testing.T) {
 func Test_parseGoListJSONStreamNoPlaywrightCIGo(t *testing.T) {
 	t.Parallel()
 
-	// Test with a JSON stream that does not contain "playwrightci"
 	jsonStream := `
 	{"Path":"github.com/some/other/package","Version":"v1.0.0","Main":false}
 	{"Path":"github.com/another/package","Version":"v2.0.0","Main":true}
@@ -35,7 +33,6 @@ func Test_parseGoListJSONStreamNoPlaywrightCIGo(t *testing.T) {
 func Test_parseGoListJSONStreamPlaywrightCIGoMain(t *testing.T) {
 	t.Parallel()
 
-	// Test with a JSON stream that contains "playwrightci" as the main module
 	jsonStream := `
 	{"Path":"github.com/mountain-reverie/playwright-ci-go","Version":"v1.0.0","Main":true}
 	`
@@ -48,7 +45,6 @@ func Test_parseGoListJSONStreamPlaywrightCIGoMain(t *testing.T) {
 func Test_parseGoListJSONStreamPlaywrightCIGoNotMain(t *testing.T) {
 	t.Parallel()
 
-	// Test with a JSON stream that contains "playwrightci" but not as the main module
 	jsonStream := `
 	{"Path":"github.com/mountain-reverie/playwright-ci-go","Version":"v1.0.0","Main":false}
 	`
@@ -61,7 +57,6 @@ func Test_parseGoListJSONStreamPlaywrightCIGoNotMain(t *testing.T) {
 func Test_parseGoListJSONStreamPlaywrightCIGoNoVersion(t *testing.T) {
 	t.Parallel()
 
-	// Test with a JSON stream that contains "playwrightci" but no version
 	jsonStream := `
 	{"Path":"github.com/mountain-reverie/playwright-ci-go","Version":"","Main":false}
 	`
@@ -74,7 +69,6 @@ func Test_parseGoListJSONStreamPlaywrightCIGoNoVersion(t *testing.T) {
 func Test_parseGoListJSONStreamInvalidStream(t *testing.T) {
 	t.Parallel()
 
-	// Test with an invalid JSON stream
 	jsonStream := `
 	{"Invalid JSON"}
 	{"Path":"github.com/mountain-reverie/playwright-ci-go","Version":"v1.0.0","Main":false}
