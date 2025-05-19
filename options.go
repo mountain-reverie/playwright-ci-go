@@ -67,3 +67,9 @@ func WithRepository(repository, tag string) Option {
 		}
 	})
 }
+
+func WithVerbose() Option {
+	return optionFunc(func(c *config) {
+		c.verbose = true
+	})
+}

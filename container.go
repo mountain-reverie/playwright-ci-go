@@ -24,6 +24,7 @@ type config struct {
 	repository string
 	tag        string
 	retry      int
+	verbose    bool
 }
 
 type container struct {
@@ -42,43 +43,49 @@ type module struct {
 }
 
 func new(version string, opts ...Option) (*container, error) {
-	splitted := strings.Split(version, ".")
-	if len(splitted) != 3 {
-		return nil, fmt.Errorf("invalid version format: %s", version)
-	}
-
-	imageVersion := fmt.Sprintf("v0.%s%02s.0", splitted[1], splitted[2])
-	if imageVersion == "v0.5101.0" {
-		// Workaround our CI having failed publishing this version
-		imageVersion = "v0.5101.1"
-	}
-
-	found := false
-
-	found, imageVersion = getPlaywrightCIGoFromBuildInfo(imageVersion)
-	if !found {
-		_, imageVersion = getPlaywrightCIGoFromGoList(imageVersion)
-	}
-
 	c := &config{
 		timeout:    5 * time.Minute,
 		sleeping:   200 * time.Millisecond,
 		retry:      15,
 		ctx:        context.Background(),
 		repository: "ghcr.io/mountain-reverie/playwright-ci-go",
-		tag:        imageVersion,
+		tag:        "",
+		verbose:    false,
 	}
 	for _, opt := range opts {
 		opt.apply(c)
+	}
+
+	if c.tag == "" {
+		splitted := strings.Split(version, ".")
+		if len(splitted) != 3 {
+			return nil, fmt.Errorf("invalid version format: %s", version)
+		}
+
+		imageVersion := fmt.Sprintf("v0.%s%02s.0", splitted[1], splitted[2])
+		if imageVersion == "v0.5101.0" {
+			// Workaround our CI having failed publishing this version
+			imageVersion = "v0.5101.1"
+		}
+
+		found := false
+
+		found, imageVersion = getPlaywrightCIGoFromBuildInfo(imageVersion, c.verbose)
+		if !found {
+			_, imageVersion = getPlaywrightCIGoFromGoList(imageVersion, c.verbose)
+		}
+		c.tag = imageVersion
 	}
 
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
 
 	timeoutSecond := int(c.timeout.Seconds())
 
-	proxy, proxyPort, close := transparentProxy(c.retry, c.sleeping)
+	proxy, proxyPort, close := transparentProxy(c.retry, c.sleeping, c.verbose)
 
-	log.Println("Starting browser container", fmt.Sprintf("%s:%s", c.repository, c.tag))
+	if c.verbose {
+		log.Println("Starting browser container", fmt.Sprintf("%s:%s", c.repository, c.tag))
+	}
 	genericContainerReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:           fmt.Sprintf("%s:%s", c.repository, c.tag),
@@ -181,23 +188,27 @@ func filterVersion(version string) string {
 	return version
 }
 
-func getPlaywrightCIGoGitVersion(imageVersion string) (bool, string) {
+func getPlaywrightCIGoGitVersion(imageVersion string, verbose bool) (bool, string) {
 	cmd := exec.Command("git", "describe", "--tags")
 	output, err := cmd.Output()
 	if err != nil {
 		return false, imageVersion
 	}
 	imageVersion = filterVersion(strings.TrimSpace(string(output)))
-	log.Println("Using version from git:", imageVersion)
+	if verbose {
+		log.Println("Using version from git:", imageVersion)
+	}
 	return true, imageVersion
 }
 
-func getPlaywrightCIGoFromBuildInfo(imageVersion string) (bool, string) {
+func getPlaywrightCIGoFromBuildInfo(imageVersion string, verbose bool) (bool, string) {
 	if info, ok := debug.ReadBuildInfo(); !ok {
 		for _, deps := range info.Deps {
 			if strings.Contains(deps.Path, "github.com/mountain-reverie/playwright-ci-go") {
 				if len(deps.Version) > 0 && deps.Version[0] == 'v' {
-					log.Println("Using version from build info:", deps.Version)
+					if verbose {
+						log.Println("Using version from build info:", deps.Version)
+					}
 					return true, deps.Version
 				}
 			}
@@ -207,26 +218,30 @@ func getPlaywrightCIGoFromBuildInfo(imageVersion string) (bool, string) {
 	return false, imageVersion
 }
 
-func getPlaywrightCIGoFromGoList(imageVersion string) (bool, string) {
+func getPlaywrightCIGoFromGoList(imageVersion string, verbose bool) (bool, string) {
 	cmd := exec.Command("go", "list", "-json", "-m", "all")
 	output, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Printf("could not get stdout pipe: %v\n", err)
+		if verbose {
+			log.Printf("could not get stdout pipe: %v\n", err)
+		}
 		return false, imageVersion
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("could not start command: %v\n", err)
+		if verbose {
+			log.Printf("could not start command: %v\n", err)
+		}
 		return false, imageVersion
 	}
 	defer func() {
 		_ = cmd.Wait()
 	}()
 
-	return parseGoListJSONStream(output, imageVersion)
+	return parseGoListJSONStream(output, imageVersion, verbose)
 }
 
-func parseGoListJSONStream(output io.Reader, imageVersion string) (bool, string) {
+func parseGoListJSONStream(output io.Reader, imageVersion string, verbose bool) (bool, string) {
 	decoder := json.NewDecoder(output)
 
 	for {
@@ -235,22 +250,30 @@ func parseGoListJSONStream(output io.Reader, imageVersion string) (bool, string)
 			if err == io.EOF {
 				break
 			}
-			log.Printf("could not decode module: %v\n", err)
+			if verbose {
+				log.Printf("could not decode module: %v\n", err)
+			}
 			return false, imageVersion
 		}
 		if strings.Contains(mod.Path, "github.com/mountain-reverie/playwright-ci-go") {
 			if mod.Main {
-				return getPlaywrightCIGoGitVersion(imageVersion)
+				return getPlaywrightCIGoGitVersion(imageVersion, verbose)
 			} else if len(mod.Version) > 0 && mod.Version[0] == 'v' {
-				log.Println("Using version from go list:", mod.Version)
+				if verbose {
+					log.Println("Using version from go list:", mod.Version)
+				}
 				return true, mod.Version
 			} else {
-				log.Println("No version found in go list for playwright-ci-go module")
+				if verbose {
+					log.Println("No version found in go list for playwright-ci-go module")
+				}
 				return false, imageVersion
 			}
 		}
 	}
 
-	log.Println("No build, module or git info found. Keeping version as:", imageVersion)
+	if verbose {
+		log.Println("No build, module or git info found. Keeping version as:", imageVersion)
+	}
 	return false, imageVersion
 }

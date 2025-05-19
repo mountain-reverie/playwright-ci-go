@@ -14,7 +14,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
-func transparentProxy(retry int, sleeping time.Duration) (string, int, func()) {
+func transparentProxy(retry int, sleeping time.Duration, verbose bool) (string, int, func()) {
 	// Listen for incoming connections
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -22,7 +22,7 @@ func transparentProxy(retry int, sleeping time.Duration) (string, int, func()) {
 	}
 
 	proxy := goproxy.NewProxyHttpServer()
-	proxy.Verbose = true
+	proxy.Verbose = verbose
 
 	srv := &http.Server{
 		Handler:           proxy,
@@ -69,6 +69,7 @@ func Wait4Port(addr string, opts ...Option) error {
 	c := &config{
 		sleeping: 200 * time.Millisecond,
 		retry:    15,
+		verbose:  false,
 		ctx:      context.Background(),
 	}
 	for _, opt := range opts {
@@ -86,15 +87,16 @@ func Wait4Port(addr string, opts ...Option) error {
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			log.Println("could not connect to", addr, "yet, error", err, "retrying in", c.sleeping)
+			if c.verbose {
+				log.Println("could not connect to", addr, "yet, error", err, "retrying in", c.sleeping)
+			}
 			if err := SleepWithContext(c.ctx, c.sleeping); err != nil {
 				return err
 			}
 			continue
 		}
 		if err := resp.Body.Close(); err != nil {
-			log.Println("could not close response body", err)
-			return err
+			return fmt.Errorf("could not close response body: %w", err)
 		}
 		return nil
 	}
