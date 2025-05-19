@@ -222,8 +222,8 @@ jobs:
           run: |
             export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
             export PLAYWRIGHTCI_TAG=${{ github.sha }}
-            go test -run='^$' -bench=. -count=15 -benchmem -memprofile=html/mem.profile -cpuprofile=html/cpu.profile | tee html/benchmark.txt
-            benchstat benchmark.txt
+            go test -run='^$' -bench=. -count=7 -benchmem -memprofile=html/mem.profile -cpuprofile=html/cpu.profile | tee html/benchmark.txt
+            benchstat html/benchmark.txt
 
         - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
           with:
