@@ -31,11 +31,12 @@ func Install(opts ...Option) error {
 		return nil
 	}
 
-	if err := playwright.Install(); err != nil {
-		return fmt.Errorf("error while installing playwright: %w", err)
+	c := config{}
+	for _, opt := range opts {
+		opt.apply(&c)
 	}
 
-	driver, err := playwright.NewDriver(&playwright.RunOptions{SkipInstallBrowsers: true})
+	driver, err := playwright.NewDriver(&playwright.RunOptions{SkipInstallBrowsers: true, Verbose: c.verbose})
 	if err != nil {
 		return fmt.Errorf("error while setting up driver: %w", err)
 	}
