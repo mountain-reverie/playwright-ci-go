@@ -18,33 +18,27 @@ func BenchmarkPageChromium(b *testing.B) {
 	teardown, base := setupBenchmark(b)
 	defer teardown()
 
-	log.Println("Benchmarking Chromium...")
 	for b.Loop() {
 		checkPage(b, playwrightcigo.Chromium, base)
 	}
-	log.Println("Chromium benchmark completed.")
 }
 
 func BenchmarkPageFirefox(b *testing.B) {
 	teardown, base := setupBenchmark(b)
 	defer teardown()
 
-	log.Println("Benchmarking Firefox...")
 	for b.Loop() {
 		checkPage(b, playwrightcigo.Firefox, base)
 	}
-	log.Println("Firefox benchmark completed.")
 }
 
 func BenchmarkPageWebkit(b *testing.B) {
 	teardown, base := setupBenchmark(b)
 	defer teardown()
 
-	log.Println("Benchmarking Webkit...")
 	for b.Loop() {
 		checkPage(b, playwrightcigo.Webkit, base)
 	}
-	log.Println("Webkit benchmark completed.")
 }
 
 func setupBenchmark(b *testing.B) (func(), string) {
