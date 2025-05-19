@@ -18,6 +18,9 @@ func BenchmarkPageChromium(b *testing.B) {
 	teardown, base := setupBenchmark(b)
 	defer teardown()
 
+	// warmup
+	checkPage(b, playwrightcigo.Chromium, base)
+
 	for b.Loop() {
 		checkPage(b, playwrightcigo.Chromium, base)
 	}
@@ -27,6 +30,9 @@ func BenchmarkPageFirefox(b *testing.B) {
 	teardown, base := setupBenchmark(b)
 	defer teardown()
 
+	// warmup
+	checkPage(b, playwrightcigo.Firefox, base)
+
 	for b.Loop() {
 		checkPage(b, playwrightcigo.Firefox, base)
 	}
@@ -35,6 +41,9 @@ func BenchmarkPageFirefox(b *testing.B) {
 func BenchmarkPageWebkit(b *testing.B) {
 	teardown, base := setupBenchmark(b)
 	defer teardown()
+
+	// warmup
+	checkPage(b, playwrightcigo.Webkit, base)
 
 	for b.Loop() {
 		checkPage(b, playwrightcigo.Webkit, base)
