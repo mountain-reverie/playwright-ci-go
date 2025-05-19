@@ -197,6 +197,34 @@ jobs:
           run: |
             cat tests.json | goteststats
 
+        - name: Fetch benchstat @master SHA-1
+          id: benchstat-master
+          run: |
+            sha1=$(curl \
+              --header "Accept: application/vnd.github+json" \
+              --silent \
+                https://api.github.com/repos/golang/perf/branches/master | \
+                  jq --raw-output ".commit.sha")
+            echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
+        - name: Cache benchstat
+          id: cache-benchstat
+          uses: actions/cache@v4
+          with:
+            key: benchstat-${{ matrix.platform }}-sha1-${{ steps.benchstat-master.outputs.sha1 }}
+            path: ~/go/bin/benchstat
+
+        - name: Install benchstat
+          if: ${{ steps.cache-cache-benchstat.outputs.cache-hit != 'true' }}
+          run: |
+            go install golang.org/x/perf/cmd/benchstat@latest
+
+        - name: Run benchmark
+          run: |
+            export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
+            export PLAYWRIGHTCI_TAG=${{ github.sha }}
+            go test -run='^$' -bench=. -count=15 -benchmem -memprofile=html/mem.profile -cpuprofile=html/cpu.profile | tee html/benchmark.txt
+            benchstat benchmark.txt
+
         - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
           with:
             name: "Tests analytics on ${{ matrix.platform}}"
@@ -204,6 +232,7 @@ jobs:
               tests.json
               html/coverage.out
               cpu.profile
+              html/benchmark.txt
         
         - name: Generate HTML report
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
