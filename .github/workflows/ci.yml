@@ -134,7 +134,9 @@ jobs:
             mkdir -p html
             export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
             export PLAYWRIGHTCI_TAG=${{ github.sha }}
-            gotestsum --jsonfile tests.json --format standard-verbose -- -covermode=atomic -coverprofile="html/coverage.out" -cpuprofile="cpu.profile" ./...
+            gotestsum --jsonfile tests.json --format standard-verbose -- -covermode=atomic -test.gocoverdir="coverage/" -cpuprofile="cpu.profile" .
+            gotestsum --jsonfile tests.json --format standard-verbose -- -covermode=atomic -test.gocoverdir="examples/coverage/" ./examples
+            go tool covdata textfmt -i=./coverage,./examples/coverage -o html/coverage.out
 
         - name: Perform CodeQL Analysis
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
