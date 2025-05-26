@@ -50,14 +50,17 @@ func Test_HelloWorld(t *testing.T) {
 	tests := []struct {
 		browser     string
 		instantiate func() (playwright.Browser, error)
+		parallel    bool
 	}{
-		{"chromium", Chromium},
-		{"firefox", Firefox},
-		{"webkit", Webkit},
+		{"chromium", Chromium, true},
+		{"firefox", Firefox, false},
+		{"webkit", Webkit, true},
 	}
 	for _, test := range tests {
 		t.Run(test.browser, func(t *testing.T) {
-			t.Parallel()
+			if test.parallel {
+				t.Parallel()
+			}
 
 			err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(10*time.Minute), WithVerbose())
 			require.NoError(t, err)
