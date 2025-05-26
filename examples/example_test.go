@@ -1,4 +1,4 @@
-package playwrightcigo_test
+package examples
 
 import (
 	"context"
@@ -6,19 +6,18 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
 	playwrightcigo "github.com/mountain-reverie/playwright-ci-go"
-	"github.com/stretchr/testify/assert"
+	"github.com/playwright-community/playwright-go"
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Firefox(t *testing.T) {
-	// Install really need to be done once and it is better done in TestMain
-	err := playwrightcigo.Install(playwrightcigo.WithTimeout(time.Minute))
-	assert.NoError(t, err)
+var browser playwright.Browser
 
+func Test_Firefox(t *testing.T) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("could not listen: %v", err)
@@ -45,9 +44,6 @@ func Test_Firefox(t *testing.T) {
 	err = playwrightcigo.Wait4Port(base)
 	require.NoError(t, err)
 
-	browser, err := playwrightcigo.Firefox()
-	require.NoError(t, err)
-
 	page, err := browser.NewPage()
 	require.NoError(t, err)
 
@@ -61,10 +57,31 @@ func Test_Firefox(t *testing.T) {
 
 	err = page.Close()
 	require.NoError(t, err)
+}
+
+func TestMain(m *testing.M) {
+	// Install once Playwright before running tests
+	err := playwrightcigo.Install(playwrightcigo.WithTimeout(time.Minute))
+	if err != nil {
+		log.Fatalf("could not install playwright: %v", err)
+	}
+
+	browser, err = playwrightcigo.Firefox()
+	if err != nil {
+		log.Fatalf("could not instantiate Firefox browser: %v", err)
+	}
+
+	exitCode := m.Run()
 
 	err = browser.Close()
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatalf("could not close browser: %v", err)
+	}
 
 	err = playwrightcigo.Uninstall()
-	assert.NoError(t, err)
+	if err != nil {
+		log.Fatalf("could not uninstall playwright: %v", err)
+	}
+
+	os.Exit(exitCode)
 }
