@@ -136,6 +136,11 @@ jobs:
             export PLAYWRIGHTCI_TAG=${{ github.sha }}
             gotestsum --jsonfile tests.json --format standard-verbose -- -covermode=atomic -coverprofile="html/coverage.out" -cpuprofile="cpu.profile" .
 
+        - name: Verify examples
+          working-directory: examples
+          run: |
+            go test .
+
         - name: Perform CodeQL Analysis
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
           uses: github/codeql-action/analyze@v3
