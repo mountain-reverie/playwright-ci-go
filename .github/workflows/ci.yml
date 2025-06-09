@@ -238,6 +238,7 @@ jobs:
               curl https://mountain-reverie.github.io/playwright-ci-go/benchmark-data.json -o html/benchmark-data.json
             else
               echo "No past benchmark result found"
+              touch html/benchmark-data.json
             fi
 
         - name: Analyze benchmark result and generate pages
