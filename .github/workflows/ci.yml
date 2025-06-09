@@ -246,7 +246,7 @@ jobs:
           uses: benchmark-action/github-action-benchmark@v1
           with:
             tool: 'go'
-            output-file-path: output.txt
+            output-file-path: ./html/benchmark.txt
             external-data-json-path: ./html/benchmark-data.json
             fail-on-alert: true
             comment-on-alert: true
