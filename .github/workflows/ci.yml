@@ -248,6 +248,7 @@ jobs:
             tool: 'go'
             output-file-path: ./html/benchmark.txt
             external-data-json-path: ./html/benchmark-data.json
+            github-token: ${{ secrets.GITHUB_TOKEN }}
             fail-on-alert: true
             comment-on-alert: true
             auto-push: false
