@@ -241,7 +241,8 @@ jobs:
               echo "No past benchmark result found"
               touch html/benchmark/benchmark-data.json
             fi
-            curl "https://img.shields.io/badge/benchmark-green" > html/benchmark/badge.svg
+            cp .github/workflows/index.html html/benchmark/index.html
+            curl "https://img.shields.io/badge/GO-Benchmark-green" > html/benchmark/badge.svg
 
         - name: Analyze benchmark result and generate pages
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
@@ -292,7 +293,7 @@ jobs:
             if [[ ${GREEN} -eq true ]]; then
               COLOR="green"
             fi
-            curl "https://img.shields.io/badge/coverage-${PERCENTAGE}%25-${COLOR}" > html/coverage-badge.svg
+            curl "https://img.shields.io/badge/Coverage-${PERCENTAGE}%25-${COLOR}" > html/coverage-badge.svg
 
         - name: Generate GitHub Pages report
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
