@@ -233,12 +233,13 @@ jobs:
         - name: Download past result from github page if exist
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
           run: |
-            if curl --output /dev/null --silent --head --fail "https://mountain-reverie.github.io/playwright-ci-go/benchmark-data.json"; then
+            mkdir -p html/benchmark
+            if curl --output /dev/null --silent --head --fail "https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json"; then
               echo "Downloading past benchmark result"
-              curl https://mountain-reverie.github.io/playwright-ci-go/benchmark-data.json -o html/benchmark-data.json
+              curl https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json -o html/benchmark-data.json
             else
               echo "No past benchmark result found"
-              touch html/benchmark-data.json
+              touch html/benchmark/benchmark-data.json
             fi
 
         - name: Analyze benchmark result and generate pages
@@ -246,8 +247,9 @@ jobs:
           uses: benchmark-action/github-action-benchmark@v1
           with:
             tool: 'go'
+            benchmark-data-dir-path: ./html/benchmark
             output-file-path: ./html/benchmark.txt
-            external-data-json-path: ./html/benchmark-data.json
+            external-data-json-path: ./html/benchmark/benchmark-data.json
             github-token: ${{ secrets.GITHUB_TOKEN }}
             fail-on-alert: true
             comment-on-alert: true
