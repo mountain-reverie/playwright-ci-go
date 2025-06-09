@@ -48,16 +48,19 @@ func Test_HelloWorld(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		browser     string
-		instantiate func() (playwright.Browser, error)
+		browser              string
+		instantiate          func() (playwright.Browser, error)
+		parallelNotSupported bool
 	}{
-		{"chromium", Chromium},
-		{"firefox", Firefox},
-		{"webkit", Webkit},
+		{"chromium", Chromium, false},
+		{"firefox", Firefox, true}, // Firefox will fail in this test case by deadlocking, so avoid parallel execution
+		{"webkit", Webkit, false},
 	}
 	for _, test := range tests {
 		t.Run(test.browser, func(t *testing.T) {
-			t.Parallel()
+			if !test.parallelNotSupported {
+				t.Parallel()
+			}
 
 			err := Install(WithRepository(os.Getenv("PLAYWRIGHTCI_REPOSITORY"), os.Getenv("PLAYWRIGHTCI_TAG")), WithTimeout(10*time.Minute), WithVerbose())
 			require.NoError(t, err)
@@ -137,9 +140,9 @@ func Test_OverlapLifecycle(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		browser      string
-		instantiate  func() (playwright.Browser, error)
-		notSupported bool
+		browser              string
+		instantiate          func() (playwright.Browser, error)
+		parallelNotSupported bool
 	}{
 		{"chromium", Chromium, false},
 		{"firefox", Firefox, true}, // Firefox will fail in this test case by deadlocking, so currently generate an error
@@ -147,7 +150,7 @@ func Test_OverlapLifecycle(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.browser, func(t *testing.T) {
-			if !test.notSupported {
+			if !test.parallelNotSupported {
 				t.Parallel()
 			}
 
