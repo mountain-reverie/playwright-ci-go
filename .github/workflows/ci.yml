@@ -230,6 +230,27 @@ jobs:
             go test -run='^$' -bench=. -count=7 -benchmem -memprofile=html/mem.profile -cpuprofile=html/cpu.profile | tee html/benchmark.txt
             benchstat html/benchmark.txt
 
+        - name: Download past result from github page if exist
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          run: |
+            if curl --output /dev/null --silent --head --fail "https://mountain-reverie.github.io/playwright-ci-go/benchmark-data.json"; then
+              echo "Downloading past benchmark result"
+              curl https://mountain-reverie.github.io/playwright-ci-go/benchmark-data.json -o html/benchmark-data.json
+            else
+              echo "No past benchmark result found"
+            fi
+
+        - name: Analyze benchmark result and generate pages
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          uses: benchmark-action/github-action-benchmark@v1
+          with:
+            tool: 'go'
+            output-file-path: output.txt
+            external-data-json-path: ./html/benchmark-data.json
+            fail-on-alert: true
+            comment-on-alert: true
+            auto-push: false
+
         - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
           with:
             name: "Tests analytics on ${{ matrix.platform}}"
