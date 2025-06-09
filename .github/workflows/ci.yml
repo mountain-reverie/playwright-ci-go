@@ -230,7 +230,7 @@ jobs:
             go test -run='^$' -bench=. -count=7 -benchmem -memprofile=html/mem.profile -cpuprofile=html/cpu.profile | tee html/benchmark.txt
             benchstat html/benchmark.txt
 
-        - name: Download past result from github page if exist
+        - name: Download past result from github page if exists
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
           run: |
             mkdir -p html/benchmark
