@@ -257,6 +257,11 @@ jobs:
             comment-on-alert: true
             auto-push: false
 
+        - name: Generate data.js
+          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          run: |
+            echo "window.BENCHMARK_DATA = $(cat html/benchmark-data.json)" > html/benchmark/data.js
+
         - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
           with:
             name: "Tests analytics on ${{ matrix.platform}}"
