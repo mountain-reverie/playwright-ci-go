@@ -57,24 +57,11 @@ func new(version string, opts ...Option) (*container, error) {
 	}
 
 	if c.tag == "" {
-		splitted := strings.Split(version, ".")
-		if len(splitted) != 3 {
-			return nil, fmt.Errorf("invalid version format: %s", version)
+		tag, err := noTagVersion(version, c.verbose)
+		if err != nil {
+			return nil, err
 		}
-
-		imageVersion := fmt.Sprintf("v0.%s%02s.0", splitted[1], splitted[2])
-		if imageVersion == "v0.5101.0" {
-			// Workaround our CI having failed publishing this version
-			imageVersion = "v0.5101.1"
-		}
-
-		found := false
-
-		found, imageVersion = getPlaywrightCIGoFromBuildInfo(imageVersion, c.verbose)
-		if !found {
-			_, imageVersion = getPlaywrightCIGoFromGoList(imageVersion, c.verbose)
-		}
-		c.tag = imageVersion
+		c.tag = tag
 	}
 
 	ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
@@ -179,6 +166,27 @@ func port(ctx context.Context, container testcontainers.Container, host string, 
 	return p.Int(), nil
 }
 
+func noTagVersion(version string, verbose bool) (string, error) {
+	splitted := strings.Split(version, ".")
+	if len(splitted) != 3 {
+		return "", fmt.Errorf("invalid version format: %s", version)
+	}
+
+	imageVersion := fmt.Sprintf("v0.%s%02s.0", splitted[1], splitted[2])
+	if imageVersion == "v0.5101.0" {
+		// Workaround our CI having failed publishing this version
+		imageVersion = "v0.5101.1"
+	}
+
+	found := false
+
+	found, imageVersion = getPlaywrightCIGoFromBuildInfo(imageVersion, verbose)
+	if !found {
+		_, imageVersion = getPlaywrightCIGoFromGoList(imageVersion, verbose)
+	}
+	return imageVersion, nil
+}
+
 func filterVersion(version string) string {
 	parts := strings.Split(version, "-")
 	if len(parts) > 0 {
@@ -192,6 +200,9 @@ func getPlaywrightCIGoGitVersion(imageVersion string, verbose bool) (bool, strin
 	cmd := exec.Command("git", "describe", "--tags")
 	output, err := cmd.Output()
 	if err != nil {
+		if verbose {
+			log.Printf("could not get git version: %v\n", err)
+		}
 		return false, imageVersion
 	}
 	imageVersion = filterVersion(strings.TrimSpace(string(output)))

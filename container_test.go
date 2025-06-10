@@ -78,3 +78,32 @@ func Test_parseGoListJSONStreamInvalidStream(t *testing.T) {
 	assert.False(t, found)
 	assert.Equal(t, "none", result)
 }
+
+func Test_BuildInfoPath(t *testing.T) {
+	t.Parallel()
+
+	ok, version := getPlaywrightCIGoFromBuildInfo("none", true)
+	assert.False(t, ok)
+	assert.Equal(t, "none", version)
+}
+
+func Test_GoListInfo(t *testing.T) {
+	t.Parallel()
+
+	ok, version := getPlaywrightCIGoFromGoList("none", true)
+	assert.True(t, ok)
+	assert.NotEqual(t, "none", version)
+	assert.NotEmpty(t, version)
+	assert.Greater(t, len(version), 3)
+	assert.Equal(t, "v0.", version[:3])
+}
+
+func Test_NoTag(t *testing.T) {
+	t.Parallel()
+
+	tag, err := noTagVersion("0.5101.0", true)
+	assert.NoError(t, err)
+	assert.NotEqual(t, "v0.5101.0", tag)
+	assert.Greater(t, len(tag), 3)
+	assert.Equal(t, "v0.", tag[:3])
+}
