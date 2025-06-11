@@ -101,7 +101,7 @@ func Test_GoListInfo(t *testing.T) {
 func Test_NoTag(t *testing.T) {
 	t.Parallel()
 
-	tag, err := noTagVersion("0.5101.0", true)
+	tag, err := noTagVersion("0.51.01", true)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "v0.5101.0", tag)
 	assert.Greater(t, len(tag), 3)
