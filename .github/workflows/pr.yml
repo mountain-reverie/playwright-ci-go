@@ -28,6 +28,187 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
+  handle-dependabot-failures:
+    runs-on: ubuntu-latest
+    needs: ci
+    if: always() && needs.ci.result == 'failure' && github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Dependabot metadata
+        id: dependabot-metadata
+        uses: dependabot/fetch-metadata@08eff52bf64351f401fb50d4972fa95b9f2c2d1b
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Download failed test artifacts
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: "Failed tests on amd64"
+          path: testdata/failed/
+
+      - name: Handle Dependabot Playwright Go test failures
+        id: handle-dependabot-failures
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Detected Playwright Go dependency update in Dependabot PR with test failures"
+          
+          # Check if there are failed test files
+          if [ -d "testdata/failed" ] && [ "$(ls -A testdata/failed 2>/dev/null)" ]; then
+            echo "Found failed test files, processing them..."
+            
+            # Process failed test files for each browser
+            for browser in chromium firefox webkit; do
+              # Check if there are any failed test files for this browser
+              failed_files=$(ls testdata/failed/screenshot-*-${browser}.png 2>/dev/null || true)
+              
+              if [ -n "$failed_files" ]; then
+                # Count the number of files
+                file_count=$(echo "$failed_files" | wc -l)
+                
+                echo "Found $file_count failed test file(s) for $browser"
+                
+                if [ "$file_count" -eq 2 ]; then
+                  # Exactly two files - this is the expected case
+                  first_file=$(echo "$failed_files" | head -n1)
+                  second_file=$(echo "$failed_files" | tail -n1)
+                  
+                  if cmp -s "$first_file" "$second_file"; then
+                    echo "Both files have the same content, proceeding with update"
+                    mv "$first_file" "testdata/screenshot-${browser}.png"
+                    rm "$second_file"
+                    echo "Updated testdata/screenshot-${browser}.png from failed tests"
+                  else
+                    echo "Error: Files have different content"
+                    echo "This requires manual intervention. Files found:"
+                    echo "$failed_files"
+                    exit 1
+                  fi
+                else
+                  echo "Error: Expected exactly 2 files for $browser, found $file_count"
+                  echo "This requires manual intervention. Files found:"
+                  echo "$failed_files"
+                  exit 1
+                fi
+              fi
+            done
+            
+            git status
+
+            # Capture the list of changed files using git diff
+            echo "Checking for changed files..."
+            CHANGED_FILES=$(git status --porcelain | grep " M" | grep ".png" | sort || true)
+            
+            echo "Git diff output:"
+            echo "$CHANGED_FILES"
+            
+            if [ -n "$CHANGED_FILES" ]; then
+              echo "Changed screenshot files:"
+              echo "$CHANGED_FILES"
+              
+              # Save the list of changed files to a temporary file for the comment step
+              echo "$CHANGED_FILES" > changed_files.txt
+              
+              # Set output to indicate screenshots were updated
+              echo "screenshots_updated=true" >> "$GITHUB_OUTPUT"
+              
+              echo "Successfully prepared test screenshots for commit"
+            else
+              echo "No screenshot files were actually changed"
+              echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "No failed test files found in testdata/failed/"
+            echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push updated screenshots
+        id: commit-screenshots
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.handle-dependabot-failures.outputs.screenshots_updated == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if there are files to commit
+          if [ -f "changed_files.txt" ] && [ -s "changed_files.txt" ]; then
+            echo "Committing updated screenshots using git"
+            
+            # Configure git
+            git config --local user.name "github-actions[bot]"
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            
+            # Add the changed files
+            while IFS= read -r filepath; do
+              if [ -f "$filepath" ]; then
+                git add "$filepath"
+                echo "Added $filepath to git"
+              fi
+            done < changed_files.txt
+            
+            # Commit the changes
+            git commit -m "Update test screenshots for Playwright Go dependency update"
+            
+            # Push the changes
+            git push origin ${{ github.head_ref }}
+            
+            # Get the commit SHA
+            COMMIT_SHA=$(git rev-parse HEAD)
+            
+            echo "Successfully committed updated screenshots"
+            echo "Commit SHA: $COMMIT_SHA"
+            
+            # Set the commit SHA as output for the next step
+            echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "No files to commit"
+          fi
+
+      - name: Comment on PR with updated screenshots
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.handle-dependabot-failures.outputs.screenshots_updated == 'true' && steps.commit-screenshots.outputs.commit_sha != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ steps.commit-screenshots.outputs.commit_sha }}
+        run: |
+          echo "# Updated Test Screenshots" > comment.md
+          echo "" >> comment.md
+          echo "The following test screenshots have been updated due to the Playwright Go dependency update:" >> comment.md
+          echo "" >> comment.md
+          
+          # List only the changed screenshot files using the saved list
+          if [ -f "changed_files.txt" ]; then
+            while IFS= read -r filepath; do
+              if [ -f "$filepath" ]; then
+                filename=$(basename "$filepath")
+                echo "- [$filename](https://github.com/${{ github.repository }}/blob/$COMMIT_SHA/$filepath)" >> comment.md
+              fi
+            done < changed_files.txt
+          else
+            echo "- No specific files found (this should not happen)" >> comment.md
+          fi
+          
+          echo "" >> comment.md
+          echo "These changes have been automatically committed and pushed to this PR." >> comment.md
+          echo "Commit: https://github.com/${{ github.repository }}/commit/$COMMIT_SHA" >> comment.md
+          
+          # Post comment to PR
+          gh pr comment ${{ github.event.number }} --body-file comment.md
+          echo "Successfully posted comment to PR with commit SHA: $COMMIT_SHA"
+
+      - name: Add breaking label to PR
+        if: steps.handle-dependabot-failures.outputs.screenshots_updated == 'true' && steps.commit-screenshots.outputs.commit_sha != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Add the "breaking" label to the PR
+          gh pr edit ${{ github.event.number }} --add-label "breaking"
+          echo "Successfully added 'breaking' label to PR"
+
   dependabot:
     runs-on: ubuntu-latest
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'mountain-reverie/playwright-ci-go'
@@ -40,4 +221,4 @@ jobs:
         if: ${{ steps.dependabot-metadata.outputs.maintainer-changes && (steps.dependabot-metadata.outputs.package-ecosystem == 'go_modules' || steps.dependabot-metadata.outputs.package-ecosystem == 'github_actions') }}
         run: gh pr merge --auto --merge "${{github.event.pull_request.html_url}}"
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
