@@ -2,6 +2,10 @@ name: Continuous Integration
 
 on: workflow_call
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
     lint:
       runs-on: ubuntu-latest
@@ -42,8 +46,9 @@ jobs:
       steps:
         - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
           with:
-            persist-credentials: false
+            persist-credentials: true
             fetch-depth: 0
+            token: ${{ secrets.GITHUB_TOKEN }}
 
         - name: Get go version
           id: go
@@ -314,11 +319,136 @@ jobs:
             name: "Failed tests on ${{ matrix.platform}}"
             path: testdata/failed/
 
-# Turned off due to https://github.com/fgrosse/go-coverage-report/issues/5
-#        - name: Code coverage report
-#          if: ${{ github.event_name == 'pull_request' && matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-#          uses: fgrosse/go-coverage-report@8c1d1a09864211d258937b1b1a5b849f7e4f2682 # Consider using a Git revision for maximum security
-#          with:
-#            coverage-artifact-name: "Tests analytics" # can be omitted if you used this default value
-#            coverage-file-name: "coverage.out" # can be omitted if you used this default value
+        - name: Handle Dependabot Playwright Go test failures
+          id: handle-dependabot-failures
+          if: ${{ failure() && github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            # Check if this is a Playwright Go dependency update
+            if git log --oneline -n 1 | grep -i "playwright-community/playwright-go"; then
+              echo "Detected Playwright Go dependency update in Dependabot PR"
+              
+              # Check if there are failed test files
+              if [ -d "testdata/failed" ] && [ "$(ls -A testdata/failed)" ]; then
+                echo "Found failed test files, moving them back to testdata/"
+                
+                # Move failed files back to testdata/
+                mv testdata/failed/* testdata/ 2>/dev/null || true
+                
+                # Capture the list of changed files using git diff
+                CHANGED_FILES=$(git diff --name-only HEAD | grep "testdata/.*\.png$" | sort)
+                
+                if [ -n "$CHANGED_FILES" ]; then
+                  echo "Changed screenshot files:"
+                  echo "$CHANGED_FILES"
+                  
+                  # Save the list of changed files to a temporary file for the comment step
+                  echo "$CHANGED_FILES" > changed_files.txt
+                  
+                  # Set output to indicate screenshots were updated
+                  echo "screenshots_updated=true" >> "$GITHUB_OUTPUT"
+                  
+                  echo "Successfully prepared test screenshots for commit"
+                else
+                  echo "No screenshot files were actually changed"
+                  echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
+                fi
+              else
+                echo "No failed test files found in testdata/failed/"
+                echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
+              fi
+            else
+              echo "This is not a Playwright Go dependency update, skipping screenshot update"
+              echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
+            fi
+
+        - name: Commit and push updated screenshots
+          id: commit-screenshots
+          if: ${{ failure() && steps.handle-dependabot-failures.outputs.screenshots_updated == 'true' }}
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            # Check if there are files to commit
+            if [ -f "changed_files.txt" ] && [ -s "changed_files.txt" ]; then
+              echo "Committing updated screenshots using GitHub GraphQL API"
+              
+              # Get the current HEAD commit
+              EXPECTED_HEAD_OID=$(git rev-parse HEAD)
+              
+              # Get the current branch name
+              BRANCH_NAME="${{ github.head_ref }}"
+              
+              # Build the files array for the GraphQL mutation using the changed files list
+              FILES_ARGS=""
+              while IFS= read -r filepath; do
+                if [ -f "$filepath" ]; then
+                  filename=$(basename "$filepath")
+                  echo "Adding $filename to commit"
+                  FILES_ARGS="$FILES_ARGS -F files[][path]=$filepath -F files[][contents]=$(base64 -w0 $filepath)"
+                fi
+              done < changed_files.txt
+              
+              # Create the commit using GitHub GraphQL API and capture the response
+              COMMIT_RESPONSE=$(gh api graphql \
+                -F githubRepository="${{ github.repository }}" \
+                -F branchName="$BRANCH_NAME" \
+                -F expectedHeadOid="$EXPECTED_HEAD_OID" \
+                -F commitMessage="Update test screenshots for Playwright Go dependency update" \
+                $FILES_ARGS \
+                -F 'query=@.github/api/createCommitOnBranch.gql')
+              
+              # Extract the commit URL and SHA from the response
+              COMMIT_URL=$(echo "$COMMIT_RESPONSE" | jq -r '.data.createCommitOnBranch.commit.url')
+              COMMIT_SHA=$(echo "$COMMIT_RESPONSE" | jq -r '.data.createCommitOnBranch.commit.oid')
+              
+              echo "Successfully committed updated screenshots"
+              echo "Commit URL: $COMMIT_URL"
+              echo "Commit SHA: $COMMIT_SHA"
+              
+              # Set the commit SHA as output for the next step
+              echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+            else
+              echo "No files to commit"
+            fi
+
+        - name: Comment on PR with updated screenshots
+          if: ${{ failure() && steps.handle-dependabot-failures.outputs.screenshots_updated == 'true' && steps.commit-screenshots.outputs.commit_sha != '' }}
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            COMMIT_SHA: ${{ steps.commit-screenshots.outputs.commit_sha }}
+          run: |
+            echo "# Updated Test Screenshots" > comment.md
+            echo "" >> comment.md
+            echo "The following test screenshots have been updated due to the Playwright Go dependency update:" >> comment.md
+            echo "" >> comment.md
+            
+            # List only the changed screenshot files using the saved list
+            if [ -f "changed_files.txt" ]; then
+              while IFS= read -r filepath; do
+                if [ -f "$filepath" ]; then
+                  filename=$(basename "$filepath")
+                  echo "- [$filename](https://github.com/${{ github.repository }}/blob/$COMMIT_SHA/$filepath)" >> comment.md
+                fi
+              done < changed_files.txt
+            else
+              echo "- No specific files found (this should not happen)" >> comment.md
+            fi
+            
+            echo "" >> comment.md
+            echo "These changes have been automatically committed and pushed to this PR." >> comment.md
+            echo "Commit: https://github.com/${{ github.repository }}/commit/$COMMIT_SHA" >> comment.md
+            
+            # Post comment to PR
+            gh pr comment ${{ github.event.number }} --body-file comment.md
+            echo "Successfully posted comment to PR with commit SHA: $COMMIT_SHA"
+
+        - name: Add breaking label to PR
+          if: ${{ failure() && steps.handle-dependabot-failures.outputs.screenshots_updated == 'true' && steps.commit-screenshots.outputs.commit_sha != '' }}
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            # Add the "breaking" label to the PR
+            gh pr edit ${{ github.event.number }} --add-label "breaking"
+            echo "Successfully added 'breaking' label to PR"
 
