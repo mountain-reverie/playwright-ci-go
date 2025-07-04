@@ -336,9 +336,8 @@ jobs:
                 # Move failed files back to testdata/
                 mv testdata/failed/* testdata/ 2>/dev/null || true
                 
-                # Capture the list of changed files using git status
-                git add testdata/
-                CHANGED_FILES=$(git status --porcelain | grep "^M\|^A" | grep "testdata/.*\.png$" | awk '{print $2}' | sort)
+                # Capture the list of changed files using git diff
+                CHANGED_FILES=$(git diff --name-only HEAD | grep "testdata/.*\.png$" | sort)
                 
                 if [ -n "$CHANGED_FILES" ]; then
                   echo "Changed screenshot files:"
