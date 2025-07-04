@@ -319,47 +319,48 @@ jobs:
             name: "Failed tests on ${{ matrix.platform}}"
             path: testdata/failed/
 
+        - name: Fetch Dependabot metadata
+          id: dependabot-metadata
+          if: ${{ failure() && github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          uses: dependabot/fetch-metadata@v2
+          with:
+            github-token: "${{ secrets.GITHUB_TOKEN }}"
+        
         - name: Handle Dependabot Playwright Go test failures
           id: handle-dependabot-failures
-          if: ${{ failure() && github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+          if: ${{ failure() && github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' && contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') }}
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |
-            # Check if this is a Playwright Go dependency update
-            if git log --oneline -n 1 | grep -i "playwright-community/playwright-go"; then
-              echo "Detected Playwright Go dependency update in Dependabot PR"
+            echo "Detected Playwright Go dependency update in Dependabot PR"
+            
+            # Check if there are failed test files
+            if [ -d "testdata/failed" ] && [ "$(ls -A testdata/failed)" ]; then
+              echo "Found failed test files, moving them back to testdata/"
               
-              # Check if there are failed test files
-              if [ -d "testdata/failed" ] && [ "$(ls -A testdata/failed)" ]; then
-                echo "Found failed test files, moving them back to testdata/"
+              # Move failed files back to testdata/
+              mv testdata/failed/* testdata/ 2>/dev/null || true
+              
+              # Capture the list of changed files using git diff
+              CHANGED_FILES=$(git diff --name-only HEAD | grep "testdata/.*\.png$" | sort)
+              
+              if [ -n "$CHANGED_FILES" ]; then
+                echo "Changed screenshot files:"
+                echo "$CHANGED_FILES"
                 
-                # Move failed files back to testdata/
-                mv testdata/failed/* testdata/ 2>/dev/null || true
+                # Save the list of changed files to a temporary file for the comment step
+                echo "$CHANGED_FILES" > changed_files.txt
                 
-                # Capture the list of changed files using git diff
-                CHANGED_FILES=$(git diff --name-only HEAD | grep "testdata/.*\.png$" | sort)
+                # Set output to indicate screenshots were updated
+                echo "screenshots_updated=true" >> "$GITHUB_OUTPUT"
                 
-                if [ -n "$CHANGED_FILES" ]; then
-                  echo "Changed screenshot files:"
-                  echo "$CHANGED_FILES"
-                  
-                  # Save the list of changed files to a temporary file for the comment step
-                  echo "$CHANGED_FILES" > changed_files.txt
-                  
-                  # Set output to indicate screenshots were updated
-                  echo "screenshots_updated=true" >> "$GITHUB_OUTPUT"
-                  
-                  echo "Successfully prepared test screenshots for commit"
-                else
-                  echo "No screenshot files were actually changed"
-                  echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
-                fi
+                echo "Successfully prepared test screenshots for commit"
               else
-                echo "No failed test files found in testdata/failed/"
+                echo "No screenshot files were actually changed"
                 echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
               fi
             else
-              echo "This is not a Playwright Go dependency update, skipping screenshot update"
+              echo "No failed test files found in testdata/failed/"
               echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
             fi
 
