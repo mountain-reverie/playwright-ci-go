@@ -136,7 +136,7 @@ jobs:
         id: commit-screenshots
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.handle-dependabot-failures.outputs.screenshots_updated == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_PAT }}
         run: |
           # Check if there are files to commit
           if [ -f "changed_files.txt" ] && [ -s "changed_files.txt" ]; then
@@ -237,7 +237,7 @@ jobs:
               filepath=$(echo "$line" | sed 's/^ M //')
               if [ -f "$filepath" ]; then
                 filename=$(basename "$filepath")
-                echo "- [$filename](https://github.com/mountain-reverie/playwright-ci-go/blob/$COMMIT_SHA/$filepath)" >> comment.md
+                echo "- ![$filename](https://raw.githubusercontent.com//mountain-reverie/playwright-ci-go/$COMMIT_SHA/$filepath)" >> comment.md
               fi
             done < changed_files.txt
           else
