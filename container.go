@@ -255,6 +255,13 @@ func getPlaywrightCIGoFromGoList(imageVersion string, verbose bool) (bool, strin
 func parseGoListJSONStream(output io.Reader, imageVersion string, verbose bool) (bool, string) {
 	decoder := json.NewDecoder(output)
 
+	defer func() {
+		// Consume the rest of the stream
+		if _, err := io.Copy(io.Discard, output); err != nil && verbose {
+			log.Printf("could not discard remaining output: %v\n", err)
+		}
+	}()
+
 	for {
 		var mod module
 		if err := decoder.Decode(&mod); err != nil {
