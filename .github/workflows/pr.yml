@@ -132,98 +132,35 @@ jobs:
             echo "screenshots_updated=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit and push updated screenshots
-        id: commit-screenshots
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.handle-dependabot-failures.outputs.screenshots_updated == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.DEPENDABOT_PAT }}
-        run: |
-          # Check if there are files to commit
-          if [ -f "changed_files.txt" ] && [ -s "changed_files.txt" ]; then
-            echo "Committing updated screenshots using GitHub API"
-            
-            # Parse changed_files.txt to extract just the file paths (removing git status prefix)
-            echo "Processing changed files:"
-            while IFS= read -r line; do
-              # Extract file path from git status output (format: " M filename")
-              filepath=$(echo "$line" | sed 's/^ M //')
-              echo "Processing file: $filepath"
-              
-              if [ -f "$filepath" ]; then
-                echo "Committing $filepath via GitHub API..."
-                
-                # Get the current SHA of the file (if it exists)
-                SHA=""
-                if gh api --silent /repos/mountain-reverie/playwright-ci-go/contents/$filepath 2>/dev/null; then
-                  SHA=$(gh api /repos/mountain-reverie/playwright-ci-go/contents/$filepath --jq '.sha' 2>/dev/null)
-                  echo "File exists, SHA: $SHA"
-                else
-                  echo "Error file does not exist in repository"
-                  exit 1
-                fi
-                
-                # Prepare the commit message
-                MESSAGE="Update $(basename "$filepath") for Playwright Go dependency update"
-                
-                # Encode file content to base64
-                CONTENT=$(base64 -w 0 "$filepath")
-                
-                # Create API call parameters
-                API_PARAMS=(
-                  --method PUT
-                  "/repos/mountain-reverie/playwright-ci-go/contents/$filepath"
-                  --field "message=$MESSAGE"
-                  --field "content=$CONTENT"
-                  --field "encoding=base64"
-                  --field "branch=${{ github.head_ref }}"
-                )
-                
-                # Add SHA if file exists (for updates)
-                if [ -n "$SHA" ]; then
-                  API_PARAMS+=(--field "sha=$SHA")
-                fi
-                
-                # Make the API call
-                echo "Making GitHub API call to commit $filepath..."
-                if [ -n "$SHA" ]; then
-                  echo "Updating existing file with SHA: $SHA"
-                  RESPONSE=$(gh api "${API_PARAMS[@]}" 2>&1)
-                else
-                  echo "Creating new file"
-                  RESPONSE=$(gh api "${API_PARAMS[@]}" 2>&1)
-                fi
-                
-                if [ $? -eq 0 ]; then
-                  COMMIT_SHA=$(echo "$RESPONSE" | jq -r '.commit.sha' 2>/dev/null)
-                  if [ -n "$COMMIT_SHA" ] && [ "$COMMIT_SHA" != "null" ]; then
-                    echo "Successfully committed $filepath (commit: $COMMIT_SHA)"
-                  else
-                    echo "Warning: Could not extract commit SHA from response"
-                    echo "Response: $RESPONSE"
-                  fi
-                else
-                  echo "Failed to commit $filepath"
-                  echo "Error response: $RESPONSE"
-                  exit 1
-                fi
-              else
-                echo "Warning: File $filepath not found, skipping"
-              fi
-            done < changed_files.txt
+      # Thanks https://github.com/stefanzweifel/git-auto-commit-action/discussions/334
+      - name: "Import GPG key"
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+        with:
+          gpg_private_key: ${{ secrets.GPG_KEY_PRIVATE }}
+          passphrase: ${{ secrets.GPG_KEY_PASSWORD }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
 
-            # Store the last commit SHA for the comment step
-            echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
-            
-            echo "Successfully committed all updated screenshots via GitHub API: $COMMIT_SHA"
-          else
-            echo "No files to commit"
-          fi
+      - name: "Commit and push changes"
+        uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0
+        id: commit-screenshots
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
+        with:
+           commit_author: "${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>"
+           commit_user_name: ${{ steps.import-gpg.outputs.name }}
+           commit_user_email: ${{ steps.import-gpg.outputs.email }}
+           commit_message: 'breaking change: update test screenshots for Playwright Go dependency update'
+           commit_options: '-S --amend --no-edit'
+           push_options: '--force'
+           skip_fetch: true
 
       - name: Comment on PR with updated screenshots
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.handle-dependabot-failures.outputs.screenshots_updated == 'true' && steps.commit-screenshots.outputs.commit_sha != ''
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMIT_SHA: ${{ steps.commit-screenshots.outputs.commit_sha }}
+          COMMIT_SHA: ${{ steps.commit-screenshots.outputs.commit_hash }}
         run: |
           echo "# Updated Test Screenshots" > comment.md
           echo "" >> comment.md
@@ -253,7 +190,7 @@ jobs:
           echo "Successfully posted comment to PR with commit SHA: $COMMIT_SHA"
 
       - name: Add breaking label to PR
-        if: steps.handle-dependabot-failures.outputs.screenshots_updated == 'true' && steps.commit-screenshots.outputs.commit_sha != ''
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
