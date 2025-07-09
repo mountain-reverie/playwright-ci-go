@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: true
-          fetch-depth: 1
+          fetch-depth: 0
           token: ${{ secrets.DEPENDABOT_PAT }}
 
       - name: Dependabot metadata
@@ -152,7 +152,7 @@ jobs:
            commit_author: "${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>"
            commit_user_name: ${{ steps.import-gpg.outputs.name }}
            commit_user_email: ${{ steps.import-gpg.outputs.email }}
-           commit_message: 'breaking change: update test screenshots for Playwright Go dependency update'
+           commit_message: 'BREAKING CHANGE: update test screenshots for Playwright Go dependency update'
            commit_options: '-S --amend --no-edit'
            push_options: '--force'
            skip_fetch: true
@@ -165,6 +165,7 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           comment-author: 'github-actions[bot]'
           body-includes: Updated Test Screenshots
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create comment body
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
@@ -202,6 +203,7 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           body-path: comment.md
           edit-mode: replace
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add breaking label to PR
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
