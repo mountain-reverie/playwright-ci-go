@@ -40,7 +40,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: true
-          fetch-depth: 0
+          fetch-depth: 1
+          token: ${{ secrets.DEPENDABOT_PAT }}
 
       - name: Dependabot metadata
         id: dependabot-metadata
