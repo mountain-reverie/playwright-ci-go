@@ -156,10 +156,18 @@ jobs:
            push_options: '--force'
            skip_fetch: true
 
-      - name: Comment on PR with updated screenshots
+      - name: Find existing screenshot comment
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
+        id: find-comment
+        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: Updated Test Screenshots
+
+      - name: Create comment body
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_SHA: ${{ steps.commit-screenshots.outputs.commit_hash }}
         run: |
           echo "# Updated Test Screenshots" > comment.md
@@ -174,7 +182,7 @@ jobs:
               filepath=$(echo "$line" | sed 's/^ M //')
               if [ -f "$filepath" ]; then
                 filename=$(basename "$filepath")
-                echo "- ![$filename](https://raw.githubusercontent.com//mountain-reverie/playwright-ci-go/$COMMIT_SHA/$filepath)" >> comment.md
+                echo "![$filename](https://raw.githubusercontent.com/mountain-reverie/playwright-ci-go/$COMMIT_SHA/$filepath)" >> comment.md
               fi
             done < changed_files.txt
           else
@@ -184,10 +192,15 @@ jobs:
           echo "" >> comment.md
           echo "These changes have been automatically committed and pushed to this PR." >> comment.md
           echo "Commit: https://github.com/mountain-reverie/playwright-ci-go/commit/$COMMIT_SHA" >> comment.md
-          
-          # Post comment to PR
-          gh pr comment ${{ github.event.number }} --body-file comment.md
-          echo "Successfully posted comment to PR with commit SHA: $COMMIT_SHA"
+
+      - name: Create or update comment on PR with updated screenshots
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: comment.md
+          edit-mode: replace
 
       - name: Add breaking label to PR
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
