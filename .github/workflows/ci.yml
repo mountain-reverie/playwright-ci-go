@@ -238,7 +238,7 @@ jobs:
             mkdir -p html/benchmark
             if curl --output /dev/null --silent --head --fail "https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json"; then
               echo "Downloading past benchmark result"
-              curl https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json -o html/benchmark-data.json
+              curl https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json -o html/benchmark/benchmark-data.json
             else
               echo "No past benchmark result found"
               touch html/benchmark/benchmark-data.json
