@@ -238,7 +238,7 @@ jobs:
             mkdir -p html/benchmark
             if curl --output /dev/null --silent --head --fail "https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json"; then
               echo "Downloading past benchmark result"
-              curl https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json -o html/benchmark-data.json
+              curl https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json -o html/benchmark/benchmark-data.json
             else
               echo "No past benchmark result found"
               touch html/benchmark/benchmark-data.json
@@ -262,7 +262,7 @@ jobs:
         - name: Generate data.js
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
           run: |
-            echo "window.BENCHMARK_DATA = $(cat html/benchmark-data.json)" > html/benchmark/data.js
+            echo "window.BENCHMARK_DATA = $(cat html/benchmark/benchmark-data.json)" > html/benchmark/data.js
 
         - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
           with:
