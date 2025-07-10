@@ -139,8 +139,9 @@ jobs:
            commit_user_name: ${{ steps.import-gpg.outputs.name }}
            commit_user_email: ${{ steps.import-gpg.outputs.email }}
            commit_message: 'BREAKING CHANGE: update test screenshots for Playwright Go dependency update'
-           commit_options: '-S --amend --no-edit'
-           push_options: '--force'
+           commit_options: '-S'
+           push_options: ''
+           file_pattern: '*.png'
            skip_fetch: true
 
       - name: Find existing screenshot comment
