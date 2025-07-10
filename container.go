@@ -262,6 +262,8 @@ func parseGoListJSONStream(output io.Reader, imageVersion string, verbose bool) 
 		}
 	}()
 
+	modules := map[string]module{}
+
 	for {
 		var mod module
 		if err := decoder.Decode(&mod); err != nil {
@@ -273,21 +275,73 @@ func parseGoListJSONStream(output io.Reader, imageVersion string, verbose bool) 
 			}
 			return false, imageVersion
 		}
-		if strings.Contains(mod.Path, "github.com/mountain-reverie/playwright-ci-go") {
+
+		if !strings.Contains(mod.Path, "playwright") {
+			continue
+		}
+
+		if verbose {
 			if mod.Main {
-				return getPlaywrightCIGoGitVersion(imageVersion, verbose)
-			} else if len(mod.Version) > 0 && mod.Version[0] == 'v' {
-				if verbose {
-					log.Println("Using version from go list:", mod.Version)
-				}
-				return true, mod.Version
+				log.Printf("Found main module: %s\n", mod.Path)
 			} else {
+				log.Printf("Found module: %s Version: %s\n", mod.Path, mod.Version)
+			}
+		}
+
+		modules[mod.Path] = mod
+	}
+
+	version := ""
+	if mod, exists := modules["github.com/playwright-community/playwright-go"]; exists {
+		if verbose {
+			log.Println("Found playwright-go module:", mod.Path, "Version:", mod.Version)
+		}
+		if len(mod.Version) > 0 && mod.Version[0] == 'v' {
+			if verbose {
+				log.Println("Found playwright-go version:", mod.Version)
+			}
+			version = mod.Version
+		}
+	}
+
+	if mod, exists := modules["github.com/mountain-reverie/playwright-ci-go"]; exists {
+		if verbose {
+			log.Println("Found playwright-ci-go module:", mod.Path, "Version:", mod.Version)
+		}
+
+		if mod.Main {
+			if version != "" {
 				if verbose {
-					log.Println("No version found in go list for playwright-ci-go module")
+					log.Println("Using version from playwright-go module:", version)
 				}
+				return true, version
+			}
+			return getPlaywrightCIGoGitVersion(imageVersion, verbose)
+		} else if len(mod.Version) > 0 && mod.Version[0] == 'v' {
+			if verbose {
+				log.Println("Using version from go list:", mod.Version)
+			}
+			return true, mod.Version
+		} else {
+			if verbose {
+				log.Println("No version found in go list for playwright-ci-go module")
+			}
+			if version != "" {
+				if verbose {
+					log.Println("Using version from playwright-go module:", version)
+				}
+				return false, version
+			} else {
 				return false, imageVersion
 			}
 		}
+	}
+
+	if version != "" {
+		if verbose {
+			log.Println("Using version from playwright-go module:", version)
+		}
+		return false, version
 	}
 
 	if verbose {

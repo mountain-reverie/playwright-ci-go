@@ -61,7 +61,7 @@ func Test_Firefox(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	// Install once Playwright before running tests
-	err := playwrightcigo.Install(playwrightcigo.WithTimeout(time.Minute))
+	err := playwrightcigo.Install(playwrightcigo.WithTimeout(time.Minute), playwrightcigo.WithVerbose())
 	if err != nil {
 		log.Fatalf("could not install playwright: %v", err)
 	}
