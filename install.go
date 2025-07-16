@@ -4,8 +4,10 @@ package playwrightcigo
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -82,7 +84,11 @@ func Uninstall() error {
 	}
 
 	if err := browsers.Close(); err != nil {
-		return fmt.Errorf("could not close container: %w", err)
+		// Ignore "not found" errors since the container may have already been terminated due to timeout or other cleanup.
+		if !errdefs.IsNotFound(err) {
+			return fmt.Errorf("could not close container: %w", err)
+		}
+		log.Println("container already closed or not found, ignoring error:", err)
 	}
 
 	if err := pw.Stop(); err != nil {
