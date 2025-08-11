@@ -91,7 +91,7 @@ jobs:
             load: true
 
         - name: Scan Image
-          uses: anchore/scan-action@16910ac423301c6d30554b83a7f71ac6ff4a51f3
+          uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e
           id: scan
           with:
             image: ghcr.io/${{ github.repository }}:${{ github.sha }}
