@@ -3,7 +3,8 @@ module github.com/mountain-reverie/playwright-ci-go
 go 1.24.2
 
 require (
-	github.com/docker/go-connections v0.5.0
+	github.com/docker/docker v28.0.1+incompatible
+	github.com/docker/go-connections v0.6.0
 	github.com/elazarl/goproxy v1.7.2
 	github.com/playwright-community/playwright-go v0.5200.0
 	github.com/stretchr/testify v1.10.0
@@ -21,7 +22,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.7.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v28.0.1+incompatible // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
