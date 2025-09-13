@@ -145,7 +145,7 @@ jobs:
 
         - name: Perform CodeQL Analysis
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          uses: github/codeql-action/analyze@v3
+          uses: github/codeql-action/analyze@018ac1a585e52f775ee7460e25bd00c4d516240e
           with:
             category: "/language:go"
           
