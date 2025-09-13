@@ -21,6 +21,8 @@ jobs:
     concurrency:
       group: handle-dependabot-failures-${{ github.event.pull_request.number }}
       cancel-in-progress: false
+    outputs:
+      screenshots_updated: ${{ steps.handle-dependabot-failures.outputs.screenshots_updated }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -200,6 +202,166 @@ jobs:
           # Add the "breaking" label to the PR
           gh pr edit ${{ github.event.number }} --add-label "breaking"
           echo "Successfully added 'breaking' label to PR"
+
+  claude-fix-dependabot-failures:
+    runs-on: ubuntu-latest
+    needs: [ci, handle-dependabot-failures]
+    if: always() && needs.ci.result == 'failure' && github.event.pull_request.user.login == 'dependabot[bot]' && (needs.handle-dependabot-failures.result == 'skipped' || (needs.handle-dependabot-failures.result == 'success' && needs.handle-dependabot-failures.outputs.screenshots_updated != 'true'))
+    concurrency:
+      group: claude-fix-dependabot-failures-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+          token: ${{ secrets.DEPENDABOT_PAT }}
+
+      - name: Check for previous Claude attempts
+        id: check-previous-attempts
+        run: |
+          # Check if the last commit is from Claude Code Action
+          LAST_COMMIT_MSG=$(git log -1 --pretty=format:'%s')
+          LAST_COMMIT_AUTHOR=$(git log -1 --pretty=format:'%ae')
+          
+          echo "Last commit message: $LAST_COMMIT_MSG"
+          echo "Last commit author: $LAST_COMMIT_AUTHOR"
+          
+          # Check if last commit contains Claude signature or is from noreply@anthropic.com
+          if [[ "$LAST_COMMIT_MSG" == *"Generated with [Claude Code]"* ]] || [[ "$LAST_COMMIT_AUTHOR" == "noreply@anthropic.com" ]]; then
+            echo "Previous Claude attempt detected. Skipping to avoid infinite loop."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No previous Claude attempt found. Proceeding with fix."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dependabot metadata
+        if: steps.check-previous-attempts.outputs.should_run == 'true'
+        id: dependabot-metadata
+        uses: dependabot/fetch-metadata@08eff52bf64351f401fb50d4972fa95b9f2c2d1b
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Check if Go ecosystem
+        if: steps.check-previous-attempts.outputs.should_run == 'true'
+        id: check-go-ecosystem
+        run: |
+          if [[ "${{ steps.dependabot-metadata.outputs.package-ecosystem }}" == "gomod" ]]; then
+            echo "This is a Go module update. Proceeding with Claude fix."
+            echo "is_go_ecosystem=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "This is not a Go module update (ecosystem: ${{ steps.dependabot-metadata.outputs.package-ecosystem }}). Skipping Claude fix."
+            echo "is_go_ecosystem=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Go
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true'
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
+        with:
+          go-version: stable
+
+      - name: Run Claude Code Action to fix build/test failures
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true'
+        id: claude-fix
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            This is a dependabot PR that has failed CI. Please analyze and fix the build or test failures systematically.
+            
+            **Context:**
+            - Dependabot PR updating: ${{ steps.dependabot-metadata.outputs.dependency-names }}
+            - Update type: ${{ steps.dependabot-metadata.outputs.update-type }}
+            - Package ecosystem: ${{ steps.dependabot-metadata.outputs.package-ecosystem }}
+            - Previous version: ${{ steps.dependabot-metadata.outputs.previous-version }}
+            - New version: ${{ steps.dependabot-metadata.outputs.new-version }}
+            - Screenshot auto-fix: Attempted but did not resolve the CI failures
+            
+            **Required Analysis Steps:**
+            1. **Initial Assessment**: Run `go build .` and `go test -v .` to identify specific failures
+            2. **Root Cause Analysis**: Determine what API changes or breaking changes caused the failures
+            3. **Dependency Check**: Run `go mod tidy` and check if additional dependencies are needed
+            4. **Fix Implementation**: Make targeted fixes for compilation/test failures
+            5. **Validation**: Re-run `go build .` and `go test -v .` to confirm fixes work
+            6. **Final Status**: Provide clear summary of what was fixed
+            
+            **Critical Requirements:**
+            - **Document your progress**: After each major step, clearly state what you found and what you're doing
+            - **Be specific**: When fixing issues, explain what changed in the dependency and how you're adapting to it
+            - **Minimal changes only**: Only modify code that's broken by the dependency update
+            - **Preserve behavior**: Ensure existing functionality remains unchanged
+            - **Test thoroughly**: All tests must pass before completing
+            
+            **Output Format for Final Status:**
+            When you complete your work, please provide a clear summary in this format:
+            
+            ## Fix Summary
+            - **Build Status**: [PASSED/FAILED]
+            - **Test Status**: [PASSED/FAILED] 
+            - **Files Modified**: [List of files you changed]
+            - **Key Changes**: [Brief description of main fixes applied]
+            - **Dependency Impact**: [What changed in the updated dependencies]
+            
+            **Important**: If you cannot fix the issues after thorough analysis, clearly explain what's blocking the fix so maintainers understand what manual intervention is needed.
+
+      - name: "Import GPG key for Claude fixes"
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && steps.claude-fix.outcome == 'success'
+        id: import-gpg-claude
+        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+        with:
+          gpg_private_key: ${{ secrets.GPG_KEY_PRIVATE }}
+          passphrase: ${{ secrets.GPG_KEY_PASSWORD }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
+      - name: "Commit and push Claude fixes"
+        uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0
+        id: commit-claude-fixes
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && steps.claude-fix.outcome == 'success'
+        with:
+           commit_author: "${{ steps.import-gpg-claude.outputs.name }} <${{ steps.import-gpg-claude.outputs.email }}>"
+           commit_user_name: ${{ steps.import-gpg-claude.outputs.name }}
+           commit_user_email: ${{ steps.import-gpg-claude.outputs.email }}
+           commit_message: |
+             fix: automated dependabot fixes by Claude Code Action
+             
+             - Fixed build and test failures caused by dependency updates
+             - Updated packages: ${{ steps.dependabot-metadata.outputs.dependency-names }}
+             - Update type: ${{ steps.dependabot-metadata.outputs.update-type }}
+             
+             🤖 Generated with [Claude Code](https://claude.ai/code)
+             
+             Co-Authored-By: Claude <noreply@anthropic.com>
+           commit_options: '-S'
+           push_options: ''
+           skip_fetch: true
+
+      - name: Create summary comment on PR
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && always()
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## 🤖 Claude Code Automated Fix Attempt
+
+            Claude Code Action has attempted to automatically fix the CI failures in this dependabot PR.
+
+            **Dependabot Update Details:**
+            - **Updated packages:** ${{ steps.dependabot-metadata.outputs.dependency-names }}
+            - **Update type:** ${{ steps.dependabot-metadata.outputs.update-type }}
+            - **Package ecosystem:** ${{ steps.dependabot-metadata.outputs.package-ecosystem }}
+
+            **Claude Action Status:** ${{ steps.claude-fix.outcome }}
+
+            ${{ steps.claude-fix.outcome == 'success' && steps.commit-claude-fixes.outputs.changes_detected == 'true' && '✅ Claude has successfully fixed the build/test failures and committed the changes. The fixes have been pushed to this PR.' || steps.claude-fix.outcome == 'success' && steps.commit-claude-fixes.outputs.changes_detected != 'true' && '✅ Claude analyzed the issues but no changes were needed to be committed.' || '❌ Claude encountered issues while attempting to fix the failures. Manual intervention may be required.' }}
+
+            ${{ steps.commit-claude-fixes.outputs.changes_detected == 'true' && steps.commit-claude-fixes.outputs.commit_hash != '' && format('**Commit:** https://github.com/mountain-reverie/playwright-ci-go/commit/{0}', steps.commit-claude-fixes.outputs.commit_hash) || '' }}
+
+            ---
+            *This comment was automatically generated by the Claude Code Action workflow.*
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   dependabot:
     runs-on: ubuntu-latest
