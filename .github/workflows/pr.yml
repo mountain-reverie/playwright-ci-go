@@ -248,7 +248,7 @@ jobs:
         if: steps.check-previous-attempts.outputs.should_run == 'true'
         id: check-go-ecosystem
         run: |
-          if [[ "${{ steps.dependabot-metadata.outputs.package-ecosystem }}" == "gomod" ]]; then
+          if [[ "${{ steps.dependabot-metadata.outputs.package-ecosystem }}" == "go_modules" ]]; then
             echo "This is a Go module update. Proceeding with Claude fix."
             echo "is_go_ecosystem=true" >> "$GITHUB_OUTPUT"
           else
@@ -261,6 +261,13 @@ jobs:
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
         with:
           go-version: stable
+
+      - name: Install golangci-lint
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true'
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+          golangci-lint --version
 
       - name: Run Claude Code Action to fix build/test failures
         if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true'
@@ -280,7 +287,7 @@ jobs:
             - Screenshot auto-fix: Attempted but did not resolve the CI failures
             
             **Required Analysis Steps:**
-            1. **Initial Assessment**: Run `go build .` and `go test -v .` to identify specific failures
+            1. **Initial Assessment**: Run `go build .`, `golangci-lint run` and `go test -v .` to identify specific failures
             2. **Root Cause Analysis**: Determine what API changes or breaking changes caused the failures
             3. **Dependency Check**: Run `go mod tidy` and check if additional dependencies are needed
             4. **Fix Implementation**: Make targeted fixes for compilation/test failures
