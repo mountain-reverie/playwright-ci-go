@@ -7,6 +7,7 @@ on:
 permissions:
   security-events: write
   packages: read
+  actions: read
   pull-requests: write
   contents: write
 
@@ -262,20 +263,26 @@ jobs:
         with:
           go-version: stable
 
-      - name: Install golangci-lint
+      - name: Install golangci-lint && gopls
         if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true'
         run: |
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+          go install golang.org/x/tools/gopls@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
           golangci-lint --version
 
       - name: Run Claude Code Action to fix build/test failures
         if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true'
         id: claude-fix
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@a5528eec7426a4f0c9c1ac96018daa53ebd05bc4
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --allowedTools 'Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(go:*),Bash(golangci-lint:*),Bash(gh:*)'
+            --mcp-config '{"mcpServers": {"gopls": {"command": ["gopls"], "args": ["mcp"] }}}'
           prompt: |
+            /fix-ci
+
             This is a dependabot PR that has failed CI. Please analyze and fix the build or test failures systematically.
             
             **Context:**
@@ -300,6 +307,7 @@ jobs:
             - **Minimal changes only**: Only modify code that's broken by the dependency update
             - **Preserve behavior**: Ensure existing functionality remains unchanged
             - **Test thoroughly**: All tests must pass before completing
+            - **Do not commit anything**: Next steps will handle committing if successful
             
             **Output Format for Final Status:**
             When you complete your work, please provide a clear summary in this format:
