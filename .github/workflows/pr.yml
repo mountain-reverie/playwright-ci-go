@@ -280,7 +280,7 @@ jobs:
           anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --allowedTools 'Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(go:*),Bash(golangci-lint:*),Bash(gh:*)'
-            --mcp-config '{"mcpServers": {"gopls": {"command": ["gopls"], "args": ["mcp"] }}}'
+            --mcp-config '{"mcpServers": {"gopls": {"command": "gopls", "args": ["mcp"] }}}'
           prompt: |
             /fix-ci
 
