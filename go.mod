@@ -6,7 +6,7 @@ require (
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/elazarl/goproxy v1.7.2
-	github.com/playwright-community/playwright-go v0.5200.0
+	github.com/playwright-community/playwright-go v0.5200.1
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.37.0
 )
