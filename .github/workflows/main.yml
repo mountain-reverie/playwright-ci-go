@@ -138,7 +138,7 @@ jobs:
         id: find-pr
         run: |
           PR_NUMBER=$(gh pr list --author app/dependabot --state open --json number --jq '.[0].number // empty' --limit 1)
-          if [ -n "$PR_NUMBER" ]; then
+          if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
             echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
             echo "Found Dependabot PR #$PR_NUMBER"
           else
