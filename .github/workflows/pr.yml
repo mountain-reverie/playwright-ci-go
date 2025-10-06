@@ -277,7 +277,7 @@ jobs:
         id: claude-fix
         uses: anthropics/claude-code-action@426380f01bad0a17200865605a85cb28926dccbf
         with:
-          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --allowedTools 'Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(go:*),Bash(golangci-lint:*),Bash(gh:*)'
             --mcp-config '{"mcpServers": {"gopls": {"command": "gopls", "args": ["mcp"] }}}'
