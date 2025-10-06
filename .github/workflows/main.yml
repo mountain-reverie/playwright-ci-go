@@ -145,7 +145,7 @@ jobs:
             echo "No open Dependabot PRs found"
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_RECREATE_PAT }}
           GH_REPO: ${{ github.repository }}
 
       - name: Comment to trigger recreate
@@ -153,6 +153,6 @@ jobs:
         run: |
           gh pr comment ${{ steps.find-pr.outputs.pr_number }} --body "@dependabot recreate"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_RECREATE_PAT }}
           GH_REPO: ${{ github.repository }}
 
