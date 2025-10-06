@@ -188,7 +188,7 @@ jobs:
 
       - name: Create or update comment on PR with updated screenshots
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9
         with:
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
@@ -356,7 +356,7 @@ jobs:
 
       - name: Create summary comment on PR
         if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && always()
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
