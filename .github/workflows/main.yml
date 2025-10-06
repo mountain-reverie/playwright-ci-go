@@ -128,4 +128,31 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 
-      
+  trigger-dependabot:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Find first open Dependabot PR
+        id: find-pr
+        run: |
+          PR_NUMBER=$(gh pr list --author app/dependabot --state open --json number --jq '.[0].number' --limit 1)
+          if [ -n "$PR_NUMBER" ]; then
+            echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "Found Dependabot PR #$PR_NUMBER"
+          else
+            echo "No open Dependabot PRs found"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      - name: Comment to trigger recreate
+        if: steps.find-pr.outputs.pr_number != ''
+        run: |
+          gh pr comment ${{ steps.find-pr.outputs.pr_number }} --body "@dependabot recreate"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
