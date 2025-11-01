@@ -53,7 +53,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Detected Playwright Go dependency update in Dependabot PR with test failures"
-          
+
           # Check if there are failed test files
           if [ -d "testdata/failed" ] && [ "$(ls -A testdata/failed 2>/dev/null)" ]; then
             echo "Found failed test files, processing them..."
@@ -157,7 +157,7 @@ jobs:
         uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
+          comment-author: "github-actions[bot]"
           body-includes: Updated Test Screenshots
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -170,7 +170,7 @@ jobs:
           echo "" >> comment.md
           echo "The following test screenshots have been updated due to the Playwright Go dependency update:" >> comment.md
           echo "" >> comment.md
-          
+
           # List only the changed screenshot files using the saved list
           if [ -f "changed_files.txt" ]; then
             while IFS= read -r line; do
@@ -184,7 +184,7 @@ jobs:
           else
             echo "- No specific files found (this should not happen)" >> comment.md
           fi
-          
+
           echo "" >> comment.md
           echo "These changes have been automatically committed and pushed to this PR." >> comment.md
           echo "Commit: https://github.com/mountain-reverie/playwright-ci-go/commit/$COMMIT_SHA" >> comment.md
@@ -229,10 +229,10 @@ jobs:
           # Check if the last commit is from Claude Code Action
           LAST_COMMIT_MSG=$(git log -1 --pretty=format:'%s')
           LAST_COMMIT_AUTHOR=$(git log -1 --pretty=format:'%ae')
-          
+
           echo "Last commit message: $LAST_COMMIT_MSG"
           echo "Last commit author: $LAST_COMMIT_AUTHOR"
-          
+
           # Check if last commit contains Claude signature or is from noreply@anthropic.com
           if [[ "$LAST_COMMIT_MSG" == *"Generated with [Claude Code]"* ]] || [[ "$LAST_COMMIT_AUTHOR" == "noreply@anthropic.com" ]]; then
             echo "Previous Claude attempt detected. Skipping to avoid infinite loop."
@@ -288,7 +288,7 @@ jobs:
             /fix-ci
 
             This is a dependabot PR that has failed CI. Please analyze and fix the build or test failures systematically.
-            
+
             **Context:**
             - Dependabot PR updating: ${{ steps.dependabot-metadata.outputs.dependency-names }}
             - Update type: ${{ steps.dependabot-metadata.outputs.update-type }}
@@ -296,7 +296,7 @@ jobs:
             - Previous version: ${{ steps.dependabot-metadata.outputs.previous-version }}
             - New version: ${{ steps.dependabot-metadata.outputs.new-version }}
             - Screenshot auto-fix: Attempted but did not resolve the CI failures
-            
+
             **Required Analysis Steps:**
             1. **Initial Assessment**: Run `go build .`, `golangci-lint run` and `go test -v .` to identify specific failures
             2. **Root Cause Analysis**: Determine what API changes or breaking changes caused the failures
@@ -304,7 +304,7 @@ jobs:
             4. **Fix Implementation**: Make targeted fixes for compilation/test failures
             5. **Validation**: Re-run `go build .` and `go test -v .` to confirm fixes work
             6. **Final Status**: Provide clear summary of what was fixed
-            
+
             **Critical Requirements:**
             - **Document your progress**: After each major step, clearly state what you found and what you're doing
             - **Be specific**: When fixing issues, explain what changed in the dependency and how you're adapting to it
@@ -312,17 +312,17 @@ jobs:
             - **Preserve behavior**: Ensure existing functionality remains unchanged
             - **Test thoroughly**: All tests must pass before completing
             - **Do not commit anything**: Next steps will handle committing if successful
-            
+
             **Output Format for Final Status:**
             When you complete your work, please provide a clear summary in this format:
-            
+
             ## Fix Summary
             - **Build Status**: [PASSED/FAILED]
             - **Test Status**: [PASSED/FAILED] 
             - **Files Modified**: [List of files you changed]
             - **Key Changes**: [Brief description of main fixes applied]
             - **Dependency Impact**: [What changed in the updated dependencies]
-            
+
             **Important**:
             - If you cannot fix the issues after thorough analysis, clearly explain what's blocking the fix so maintainers understand what manual intervention is needed.
             - Ensure your final output is concise and follows the specified format.
@@ -373,7 +373,7 @@ jobs:
             echo "changes_detected=false" >> "$GITHUB_OUTPUT"
             echo "commit_hash=" >> "$GITHUB_OUTPUT"
           fi
-          git push
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Create summary comment on PR
         if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && always()
