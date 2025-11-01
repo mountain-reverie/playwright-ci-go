@@ -135,18 +135,21 @@ jobs:
           git_commit_gpgsign: true
 
       - name: "Commit and push changes"
-        uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3
         id: commit-screenshots
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
-        with:
-           token: ${{ secrets.DEPENDABOT_PAT }}
-           commit_author: "${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>"
-           commit_user_name: ${{ steps.import-gpg.outputs.name }}
-           commit_user_email: ${{ steps.import-gpg.outputs.email }}
-           commit_message: 'BREAKING CHANGE: update test screenshots for Playwright Go dependency update'
-           commit_options: '-S'
-           push_options: ''
-           file_pattern: '*.png'
+        run: |
+          git commit -m 'BREAKING CHANGE: update test screenshots for Playwright Go dependency update' -S .
+          if [ $? -eq 0 ]; then
+            echo "Changes detected and committed."
+            echo "changes_detected=true" >> "$GITHUB_OUTPUT"
+            COMMIT_HASH=$(git rev-parse HEAD)
+            echo "commit_hash=$COMMIT_HASH" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changes to commit."
+            echo "changes_detected=false" >> "$GITHUB_OUTPUT"
+            echo "commit_hash=" >> "$GITHUB_OUTPUT"
+          fi
+          git push
 
       - name: Find existing screenshot comment
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
@@ -320,10 +323,25 @@ jobs:
             - **Key Changes**: [Brief description of main fixes applied]
             - **Dependency Impact**: [What changed in the updated dependencies]
             
-            **Important**: If you cannot fix the issues after thorough analysis, clearly explain what's blocking the fix so maintainers understand what manual intervention is needed.
+            **Important**:
+            - If you cannot fix the issues after thorough analysis, clearly explain what's blocking the fix so maintainers understand what manual intervention is needed.
+            - Ensure your final output is concise and follows the specified format.
+            - Do not commit any changes yourself. The next step will handle committing if successful.
+
+      - name: Detect if any changes were made by Claude
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && steps.claude-fix.outcome == 'success'
+        id: detect-claude-changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes detected after Claude fix."
+            echo "changes_made=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changes detected after Claude fix."
+            echo "changes_made=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: "Import GPG key for Claude fixes"
-        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && steps.claude-fix.outcome == 'success'
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && steps.claude-fix.outcome == 'success' && steps.detect-claude-changes.outputs.changes_made == 'true'
         id: import-gpg-claude
         uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
         with:
@@ -333,16 +351,10 @@ jobs:
           git_commit_gpgsign: true
 
       - name: "Commit and push Claude fixes"
-        uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3
         id: commit-claude-fixes
-        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && steps.claude-fix.outcome == 'success'
-        with:
-           token: ${{ secrets.DEPENDABOT_PAT }}
-           commit_author: "${{ steps.import-gpg-claude.outputs.name }} <${{ steps.import-gpg-claude.outputs.email }}>"
-           commit_user_name: ${{ steps.import-gpg-claude.outputs.name }}
-           commit_user_email: ${{ steps.import-gpg-claude.outputs.email }}
-           commit_message: |
-             fix: automated dependabot fixes by Claude Code Action
+        if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && steps.claude-fix.outcome == 'success' && steps.detect-claude-changes.outputs.changes_made == 'true'
+        run: |
+          git commit -S -m "fix: automated dependabot fixes by Claude Code Action
              
              - Fixed build and test failures caused by dependency updates
              - Updated packages: ${{ steps.dependabot-metadata.outputs.dependency-names }}
@@ -350,9 +362,18 @@ jobs:
              
              🤖 Generated with [Claude Code](https://claude.ai/code)
              
-             Co-Authored-By: Claude <noreply@anthropic.com>
-           commit_options: '-S'
-           push_options: ''
+             Co-Authored-By: Claude <noreply@anthropic.com>" .
+          if [ $? -eq 0 ]; then
+            echo "Changes detected and committed."
+            echo "changes_detected=true" >> "$GITHUB_OUTPUT"
+            COMMIT_HASH=$(git rev-parse HEAD)
+            echo "commit_hash=$COMMIT_HASH" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changes to commit."
+            echo "changes_detected=false" >> "$GITHUB_OUTPUT"
+            echo "commit_hash=" >> "$GITHUB_OUTPUT"
+          fi
+          git push
 
       - name: Create summary comment on PR
         if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && always()
