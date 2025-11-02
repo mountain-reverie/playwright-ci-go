@@ -7,7 +7,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
 	"github.com/playwright-community/playwright-go"
 )
 
