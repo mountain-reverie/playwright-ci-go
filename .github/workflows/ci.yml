@@ -63,7 +63,7 @@ jobs:
 
         - name: Install Docker
           if: ${{ matrix.runner == 'macos-13' }}
-          uses: douglascamata/setup-docker-macos-action@de9dc31504356970f7ab9b785d6afee99b994692
+          uses: douglascamata/setup-docker-macos-action@5643cfd7e434881308f89f2f3ae8852da11df909
 
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
