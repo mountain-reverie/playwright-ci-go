@@ -10,7 +10,7 @@ jobs:
           with:
             persist-credentials: false
 
-        - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
           with:
             go-version: stable
 
@@ -50,7 +50,7 @@ jobs:
           id: go
           run: echo "version=$(grep '^go ' go.mod | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
 
-        - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
           with:
             go-version: ${{ steps.go.outputs.version }}
 
