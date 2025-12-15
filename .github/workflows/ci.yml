@@ -160,7 +160,7 @@ jobs:
             echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
         - name: Cache goteststats
           id: cache-goteststats
-          uses: actions/cache@v4
+          uses: actions/cache@v5
           with:
             key: goteststats-${{ matrix.platform }}-sha1-${{ steps.goteststats-main.outputs.sha1 }}
             path: ~/go/bin/goteststats
@@ -183,7 +183,7 @@ jobs:
         - name: Cache golang-cover-diff
           id: cache-golang-cover-diff
           if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          uses: actions/cache@v4
+          uses: actions/cache@v5
           with:
             key: golang-cover-diff-${{ matrix.platform }}-sha1-${{ steps.golang-cover-diff-main.outputs.sha1 }}
             path: ~/go/bin/golang-cover-diff
@@ -215,7 +215,7 @@ jobs:
             echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
         - name: Cache benchstat
           id: cache-benchstat
-          uses: actions/cache@v4
+          uses: actions/cache@v5
           with:
             key: benchstat-${{ matrix.platform }}-sha1-${{ steps.benchstat-master.outputs.sha1 }}
             path: ~/go/bin/benchstat
