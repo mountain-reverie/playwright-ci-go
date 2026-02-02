@@ -281,7 +281,7 @@ jobs:
       - name: Run Claude Code Action to fix build/test failures
         if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true'
         id: claude-fix
-        uses: anthropics/claude-code-action@f64219702d7454cf29fe32a74104be6ed43dc637
+        uses: anthropics/claude-code-action@70e16deb18402428bd09e08d1ec3662a872e3c72
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
