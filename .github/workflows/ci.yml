@@ -3,315 +3,314 @@ name: Continuous Integration
 on: workflow_call
 
 jobs:
-    lint:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-          with:
-            persist-credentials: false
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
-        - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
-          with:
-            go-version: stable
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
+        with:
+          go-version: stable
 
-        - name: Run golangci-lint
-          uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20
 
-    tests:
-      defaults:
-        run:
-          shell: bash
-      runs-on:  ${{ matrix.runner }}
-      strategy:
-        fail-fast: false
-        matrix:
-          include:
+  tests:
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - runner: ubuntu-latest
             platform: amd64
-# This platform currently do not support docker/podman on GitHub Runners
-#          - runner: macos-latest
-#            platform: arm64
-#          - runner: windows-latest
-#            platform: amd64
+          # This platform currently do not support docker/podman on GitHub Runners
+          #          - runner: macos-latest
+          #            platform: arm64
+          #          - runner: windows-latest
+          #            platform: amd64
           - runner: ubuntu-24.04-arm
             platform: arm64
-# Disable for now due to https://github.com/testcontainers/testcontainers-go/issues/2952
-#          - runner: macos-13
-#            platform: amd64
+    # Disable for now due to https://github.com/testcontainers/testcontainers-go/issues/2952
+    #          - runner: macos-13
+    #            platform: amd64
 
-      steps:
-        - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-          with:
-            persist-credentials: true
-            fetch-depth: 0
-            token: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Get go version
-          id: go
-          run: echo "version=$(grep '^go ' go.mod | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - name: Get go version
+        id: go
+        run: echo "version=$(grep '^go ' go.mod | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
 
-        - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
-          with:
-            go-version: ${{ steps.go.outputs.version }}
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
+        with:
+          go-version: stable
 
-        - name: Playwright version
-          id: playwright
-          run: |
-            export PLAYWRIGHT_GO_VERSION=$(go list -m all | grep github.com/playwright-community/playwright-go | awk '{print $2}')
-            echo "playwright_go_version=$PLAYWRIGHT_GO_VERSION" >> "$GITHUB_OUTPUT"
-            echo "version="$(go run github.com/playwright-community/playwright-go/cmd/playwright@$PLAYWRIGHT_GO_VERSION --version |cut -d " " -f 2) >> "$GITHUB_OUTPUT"
+      - name: Playwright version
+        id: playwright
+        run: |
+          export PLAYWRIGHT_GO_VERSION=$(go list -m all | grep github.com/playwright-community/playwright-go | awk '{print $2}')
+          echo "playwright_go_version=$PLAYWRIGHT_GO_VERSION" >> "$GITHUB_OUTPUT"
+          echo "version="$(go run github.com/playwright-community/playwright-go/cmd/playwright@$PLAYWRIGHT_GO_VERSION --version |cut -d " " -f 2) >> "$GITHUB_OUTPUT"
 
-        - name: Install Docker
-          if: ${{ matrix.runner == 'macos-13' }}
-          uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
+      - name: Install Docker
+        if: ${{ matrix.runner == 'macos-13' }}
+        uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
 
-        - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
-        - name: Figure out cache destination depending on runner
-          id: cache
-          run: |
-            if [[ "${{ matrix.runner }}" == "macos-13" ]]; then
-              echo "cache=" >> "$GITHUB_OUTPUT"
-            else
-              echo "cache=type=gha,mode=max,scope=${{ matrix.platform }}" >> "$GITHUB_OUTPUT"
-            fi
-          
-        - name: Build image locally, but use cache from GHA
-          uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
-          with:
-            context: "{{defaultContext}}:docker"
-            build-args: PLAYWRIGHT_VERSION=${{ steps.playwright.outputs.version }}
-            push: false
-            file: "Dockerfile"
-            cache-from: type=gha,scope=${{ matrix.platform }}
-            cache-to: ${{ steps.cache.outputs.cache }}
-            platforms: linux/${{ matrix.platform }}
-            tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
-            load: true
+      - name: Figure out cache destination depending on runner
+        id: cache
+        run: |
+          if [[ "${{ matrix.runner }}" == "macos-13" ]]; then
+            echo "cache=" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache=type=gha,mode=max,scope=${{ matrix.platform }}" >> "$GITHUB_OUTPUT"
+          fi
 
-        - name: Scan Image
-          uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c
-          id: scan
-          with:
-            image: ghcr.io/${{ github.repository }}:${{ github.sha }}
-            fail-build: false
-            output-format: sarif
-    
-        - name: Upload Anchore Scan SARIF Report
-          uses: github/codeql-action/upload-sarif@018ac1a585e52f775ee7460e25bd00c4d516240e
-          with:
-            sarif_file: ${{ steps.scan.outputs.sarif }}
+      - name: Build image locally, but use cache from GHA
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        with:
+          context: "{{defaultContext}}:docker"
+          build-args: PLAYWRIGHT_VERSION=${{ steps.playwright.outputs.version }}
+          push: false
+          file: "Dockerfile"
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: ${{ steps.cache.outputs.cache }}
+          platforms: linux/${{ matrix.platform }}
+          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          load: true
 
-        - name: Install go-task
-          uses: jaxxstorm/action-install-gh-release@6096f2a2bbfee498ced520b6922ac2c06e990ed2
-          with: # Grab the latest version
-            repo: gotestyourself/gotestsum
-  
-        - name: Initialize CodeQL
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          uses: github/codeql-action/init@018ac1a585e52f775ee7460e25bd00c4d516240e
-          with:
-            languages: go
-            build-mode: manual
-  
-        - name: Add colima testcontainer environment
-          if: ${{ matrix.runner == 'macos-13' }}
-          run: |
-            echo "TESTCONTAINERS_HOST_OVERRIDE=$(colima ls -j | jq -r '.address')" >> "$GITHUB_ENV"
-            echo "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock" >> "$GITHUB_ENV"
-            echo "TESTCONTAINERS_RYUK_DISABLED=true" >> "$GITHUB_ENV"
-            echo "DOCKER_HOST=unix://${HOME}/.colima/docker.sock" >> "$GITHUB_ENV"
+      - name: Scan Image
+        uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c
+        id: scan
+        with:
+          image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          fail-build: false
+          output-format: sarif
 
-        - name: Build package for CodeQL
-          run: |
-            go build .
+      - name: Upload Anchore Scan SARIF Report
+        uses: github/codeql-action/upload-sarif@018ac1a585e52f775ee7460e25bd00c4d516240e
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
 
-        - name: Tag the image to match the example test
-          run: |
-            docker tag ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:${{ steps.playwright.outputs.playwright_go_version }}
+      - name: Install go-task
+        uses: jaxxstorm/action-install-gh-release@6096f2a2bbfee498ced520b6922ac2c06e990ed2
+        with: # Grab the latest version
+          repo: gotestyourself/gotestsum
 
-        - name: Run tests
-          run: |
-            mkdir -p html
-            export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
-            export PLAYWRIGHTCI_TAG=${{ github.sha }}
-            gotestsum --jsonfile tests.json --format standard-verbose -- -covermode=atomic -coverprofile="html/coverage.out" -cpuprofile="cpu.profile" .
+      - name: Initialize CodeQL
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        uses: github/codeql-action/init@018ac1a585e52f775ee7460e25bd00c4d516240e
+        with:
+          languages: go
+          build-mode: manual
 
-        - name: Verify examples
-          working-directory: examples
-          run: |
-            go test .
+      - name: Add colima testcontainer environment
+        if: ${{ matrix.runner == 'macos-13' }}
+        run: |
+          echo "TESTCONTAINERS_HOST_OVERRIDE=$(colima ls -j | jq -r '.address')" >> "$GITHUB_ENV"
+          echo "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock" >> "$GITHUB_ENV"
+          echo "TESTCONTAINERS_RYUK_DISABLED=true" >> "$GITHUB_ENV"
+          echo "DOCKER_HOST=unix://${HOME}/.colima/docker.sock" >> "$GITHUB_ENV"
 
-        - name: Perform CodeQL Analysis
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          uses: github/codeql-action/analyze@018ac1a585e52f775ee7460e25bd00c4d516240e
-          with:
-            category: "/language:go"
-          
-        - name: Fetch goteststats @main SHA-1
-          id: goteststats-main
-          run: |
-            sha1=$(curl \
-              --header "Accept: application/vnd.github+json" \
-              --silent \
-                https://api.github.com/repos/getvictor/goteststats/branches/main | \
-                  jq --raw-output ".commit.sha")
-            echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
-        - name: Cache goteststats
-          id: cache-goteststats
-          uses: actions/cache@v5
-          with:
-            key: goteststats-${{ matrix.platform }}-sha1-${{ steps.goteststats-main.outputs.sha1 }}
-            path: ~/go/bin/goteststats
+      - name: Build package for CodeQL
+        run: |
+          go build .
 
-        - name: Install goteststats
-          if: ${{ steps.cache-goteststats.outputs.cache-hit != 'true' }}
-          run: |
-            go install github.com/getvictor/goteststats@latest
+      - name: Tag the image to match the example test
+        run: |
+          docker tag ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:${{ steps.playwright.outputs.playwright_go_version }}
 
-        - name: Fetch golang-cover-diff @main SHA-1
-          id: golang-cover-diff-main
-          run: |
-            sha1=$(curl \
-              --header "Accept: application/vnd.github+json" \
-              --silent \
-                https://api.github.com/repos/flipgroup/golang-cover-diff/branches/main | \
-                  jq --raw-output ".commit.sha")
-            echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
+      - name: Run tests
+        run: |
+          mkdir -p html
+          export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
+          export PLAYWRIGHTCI_TAG=${{ github.sha }}
+          gotestsum --jsonfile tests.json --format standard-verbose -- -covermode=atomic -coverprofile="html/coverage.out" -cpuprofile="cpu.profile" .
 
-        - name: Cache golang-cover-diff
-          id: cache-golang-cover-diff
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          uses: actions/cache@v5
-          with:
-            key: golang-cover-diff-${{ matrix.platform }}-sha1-${{ steps.golang-cover-diff-main.outputs.sha1 }}
-            path: ~/go/bin/golang-cover-diff
-        - name: Install golang-cover-diff
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' && steps.cache-golang-cover-diff.outputs.cache-hit != 'true' }}
-          run: go install github.com/flipgroup/golang-cover-diff@main
+      - name: Verify examples
+        working-directory: examples
+        run: |
+          go test .
 
-        - name: Generate golang-cover-diff report
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' && github.event_name == 'pull_request' }}
-          env:
-            GITHUB_PULL_REQUEST_ID: ${{ github.event.number }}
-            GITHUB_TOKEN: ${{ github.token }}
-          run: |
-            curl https://mountain-reverie.github.io/playwright-ci-go/coverage.out -o coverage-main.out
-            golang-cover-diff coverage-main.out html/coverage.out
+      - name: Perform CodeQL Analysis
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        uses: github/codeql-action/analyze@018ac1a585e52f775ee7460e25bd00c4d516240e
+        with:
+          category: "/language:go"
 
-        - name: Generate goteststats report
-          run: |
-            cat tests.json | goteststats
+      - name: Fetch goteststats @main SHA-1
+        id: goteststats-main
+        run: |
+          sha1=$(curl \
+            --header "Accept: application/vnd.github+json" \
+            --silent \
+              https://api.github.com/repos/getvictor/goteststats/branches/main | \
+                jq --raw-output ".commit.sha")
+          echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
+      - name: Cache goteststats
+        id: cache-goteststats
+        uses: actions/cache@v5
+        with:
+          key: goteststats-${{ matrix.platform }}-sha1-${{ steps.goteststats-main.outputs.sha1 }}
+          path: ~/go/bin/goteststats
 
-        - name: Fetch benchstat @master SHA-1
-          id: benchstat-master
-          run: |
-            sha1=$(curl \
-              --header "Accept: application/vnd.github+json" \
-              --silent \
-                https://api.github.com/repos/golang/perf/branches/master | \
-                  jq --raw-output ".commit.sha")
-            echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
-        - name: Cache benchstat
-          id: cache-benchstat
-          uses: actions/cache@v5
-          with:
-            key: benchstat-${{ matrix.platform }}-sha1-${{ steps.benchstat-master.outputs.sha1 }}
-            path: ~/go/bin/benchstat
+      - name: Install goteststats
+        if: ${{ steps.cache-goteststats.outputs.cache-hit != 'true' }}
+        run: |
+          go install github.com/getvictor/goteststats@latest
 
-        - name: Install benchstat
-          if: ${{ steps.cache-benchstat.outputs.cache-hit != 'true' }}
-          run: |
-            go install golang.org/x/perf/cmd/benchstat@latest
+      - name: Fetch golang-cover-diff @main SHA-1
+        id: golang-cover-diff-main
+        run: |
+          sha1=$(curl \
+            --header "Accept: application/vnd.github+json" \
+            --silent \
+              https://api.github.com/repos/flipgroup/golang-cover-diff/branches/main | \
+                jq --raw-output ".commit.sha")
+          echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
 
-        - name: Run benchmark
-          run: |
-            export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
-            export PLAYWRIGHTCI_TAG=${{ github.sha }}
-            go test -run='^$' -bench=. -count=7 -benchmem -memprofile=html/mem.profile -cpuprofile=html/cpu.profile | tee html/benchmark.txt
-            benchstat html/benchmark.txt
+      - name: Cache golang-cover-diff
+        id: cache-golang-cover-diff
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        uses: actions/cache@v5
+        with:
+          key: golang-cover-diff-${{ matrix.platform }}-sha1-${{ steps.golang-cover-diff-main.outputs.sha1 }}
+          path: ~/go/bin/golang-cover-diff
+      - name: Install golang-cover-diff
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' && steps.cache-golang-cover-diff.outputs.cache-hit != 'true' }}
+        run: go install github.com/flipgroup/golang-cover-diff@main
 
-        - name: Download past result from github page if exists
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          run: |
-            mkdir -p html/benchmark
-            if curl --output /dev/null --silent --head --fail "https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json"; then
-              echo "Downloading past benchmark result"
-              curl https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json -o html/benchmark/benchmark-data.json
-            else
-              echo "No past benchmark result found"
-              touch html/benchmark/benchmark-data.json
-            fi
-            cp .github/workflows/index.html html/benchmark/index.html
-            curl "https://img.shields.io/badge/GO-Benchmark-green" > html/benchmark/badge.svg
+      - name: Generate golang-cover-diff report
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' && github.event_name == 'pull_request' }}
+        env:
+          GITHUB_PULL_REQUEST_ID: ${{ github.event.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          curl https://mountain-reverie.github.io/playwright-ci-go/coverage.out -o coverage-main.out
+          golang-cover-diff coverage-main.out html/coverage.out
 
-        - name: Analyze benchmark result and generate pages
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          uses: benchmark-action/github-action-benchmark@v1
-          with:
-            tool: 'go'
-            benchmark-data-dir-path: ./html/benchmark
-            output-file-path: ./html/benchmark.txt
-            external-data-json-path: ./html/benchmark/benchmark-data.json
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-            fail-on-alert: true
-            comment-on-alert: true
-            auto-push: false
+      - name: Generate goteststats report
+        run: |
+          cat tests.json | goteststats
 
-        - name: Generate data.js
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          run: |
-            echo "window.BENCHMARK_DATA = $(cat html/benchmark/benchmark-data.json)" > html/benchmark/data.js
+      - name: Fetch benchstat @master SHA-1
+        id: benchstat-master
+        run: |
+          sha1=$(curl \
+            --header "Accept: application/vnd.github+json" \
+            --silent \
+              https://api.github.com/repos/golang/perf/branches/master | \
+                jq --raw-output ".commit.sha")
+          echo "sha1=$sha1" >>"$GITHUB_OUTPUT"
+      - name: Cache benchstat
+        id: cache-benchstat
+        uses: actions/cache@v5
+        with:
+          key: benchstat-${{ matrix.platform }}-sha1-${{ steps.benchstat-master.outputs.sha1 }}
+          path: ~/go/bin/benchstat
 
-        - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-          with:
-            name: "Tests analytics on ${{ matrix.platform}}"
-            path: |
-              tests.json
-              html/coverage.out
-              cpu.profile
-              html/benchmark.txt
-        
-        - name: Generate HTML report
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          run: |
-            go tool cover -html=html/coverage.out -o html/coverage.html
+      - name: Install benchstat
+        if: ${{ steps.cache-benchstat.outputs.cache-hit != 'true' }}
+        run: |
+          go install golang.org/x/perf/cmd/benchstat@latest
 
-        - name: Get coverage percentage
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          id: coverage
-          run: |
-            PERCENTAGE=$(go tool cover -func=html/coverage.out | grep total: | awk '{print $3}' | tr -d '%\n')
-            echo "$PERCENTAGE% code coverage"
-            echo "PERCENTAGE=$PERCENTAGE" >> $GITHUB_OUTPUT
+      - name: Run benchmark
+        run: |
+          export PLAYWRIGHTCI_REPOSITORY=ghcr.io/${{ github.repository }}
+          export PLAYWRIGHTCI_TAG=${{ github.sha }}
+          go test -run='^$' -bench=. -count=7 -benchmem -memprofile=html/mem.profile -cpuprofile=html/cpu.profile | tee html/benchmark.txt
+          benchstat html/benchmark.txt
 
-        - name: Generate badge
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          env:
-            PERCENTAGE: ${{ steps.coverage.outputs.PERCENTAGE }}
-            YELLOW: ${{ steps.coverage.outputs.PERCENTAGE >= 60 }}
-            GREEN: ${{ steps.coverage.outputs.PERCENTAGE >= 80 }}
-          run: |
-            COLOR="red"
-            if [[ ${YELLOW} -eq true ]]; then
-              COLOR="yellow"
-            fi
-            if [[ ${GREEN} -eq true ]]; then
-              COLOR="green"
-            fi
-            curl "https://img.shields.io/badge/Coverage-${PERCENTAGE}%25-${COLOR}" > html/coverage-badge.svg
+      - name: Download past result from github page if exists
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        run: |
+          mkdir -p html/benchmark
+          if curl --output /dev/null --silent --head --fail "https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json"; then
+            echo "Downloading past benchmark result"
+            curl https://mountain-reverie.github.io/playwright-ci-go/benchmark/benchmark-data.json -o html/benchmark/benchmark-data.json
+          else
+            echo "No past benchmark result found"
+            touch html/benchmark/benchmark-data.json
+          fi
+          cp .github/workflows/index.html html/benchmark/index.html
+          curl "https://img.shields.io/badge/GO-Benchmark-green" > html/benchmark/badge.svg
 
-        - name: Generate GitHub Pages report
-          if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
-          uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # or specific "vX.X.X" version tag for this action
-          with:
-            path: html
-        
-        - name: Upload failed tests result
-          if: ${{ failure() }}
-          uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-          with:
-            name: "Failed tests on ${{ matrix.platform}}"
-            path: testdata/failed/
+      - name: Analyze benchmark result and generate pages
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: "go"
+          benchmark-data-dir-path: ./html/benchmark
+          output-file-path: ./html/benchmark.txt
+          external-data-json-path: ./html/benchmark/benchmark-data.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-alert: true
+          comment-on-alert: true
+          auto-push: false
 
+      - name: Generate data.js
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        run: |
+          echo "window.BENCHMARK_DATA = $(cat html/benchmark/benchmark-data.json)" > html/benchmark/data.js
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: "Tests analytics on ${{ matrix.platform}}"
+          path: |
+            tests.json
+            html/coverage.out
+            cpu.profile
+            html/benchmark.txt
+
+      - name: Generate HTML report
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        run: |
+          go tool cover -html=html/coverage.out -o html/coverage.html
+
+      - name: Get coverage percentage
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        id: coverage
+        run: |
+          PERCENTAGE=$(go tool cover -func=html/coverage.out | grep total: | awk '{print $3}' | tr -d '%\n')
+          echo "$PERCENTAGE% code coverage"
+          echo "PERCENTAGE=$PERCENTAGE" >> $GITHUB_OUTPUT
+
+      - name: Generate badge
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        env:
+          PERCENTAGE: ${{ steps.coverage.outputs.PERCENTAGE }}
+          YELLOW: ${{ steps.coverage.outputs.PERCENTAGE >= 60 }}
+          GREEN: ${{ steps.coverage.outputs.PERCENTAGE >= 80 }}
+        run: |
+          COLOR="red"
+          if [[ ${YELLOW} -eq true ]]; then
+            COLOR="yellow"
+          fi
+          if [[ ${GREEN} -eq true ]]; then
+            COLOR="green"
+          fi
+          curl "https://img.shields.io/badge/Coverage-${PERCENTAGE}%25-${COLOR}" > html/coverage-badge.svg
+
+      - name: Generate GitHub Pages report
+        if: ${{ matrix.runner == 'ubuntu-latest' && matrix.platform == 'amd64' }}
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # or specific "vX.X.X" version tag for this action
+        with:
+          path: html
+
+      - name: Upload failed tests result
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: "Failed tests on ${{ matrix.platform}}"
+          path: testdata/failed/
