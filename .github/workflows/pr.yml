@@ -127,7 +127,7 @@ jobs:
       - name: "Import GPG key"
         if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
         id: import-gpg
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
         with:
           gpg_private_key: ${{ secrets.GPG_KEY_PRIVATE }}
           passphrase: ${{ secrets.GPG_KEY_PASSWORD }}
@@ -346,7 +346,7 @@ jobs:
       - name: "Import GPG key for Claude fixes"
         if: steps.check-previous-attempts.outputs.should_run == 'true' && steps.check-go-ecosystem.outputs.is_go_ecosystem == 'true' && steps.claude-fix.outcome == 'success' && steps.detect-claude-changes.outputs.changes_made == 'true'
         id: import-gpg-claude
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
         with:
           gpg_private_key: ${{ secrets.GPG_KEY_PRIVATE }}
           passphrase: ${{ secrets.GPG_KEY_PASSWORD }}
