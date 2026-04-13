@@ -264,7 +264,7 @@ jobs:
         run: |
           echo "window.BENCHMARK_DATA = $(cat html/benchmark/benchmark-data.json)" > html/benchmark/data.js
 
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: "Tests analytics on ${{ matrix.platform}}"
           path: |
@@ -310,7 +310,7 @@ jobs:
 
       - name: Upload failed tests result
         if: ${{ failure() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: "Failed tests on ${{ matrix.platform}}"
           path: testdata/failed/
