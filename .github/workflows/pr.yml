@@ -35,7 +35,7 @@ jobs:
 
       - name: Dependabot metadata
         id: dependabot-metadata
-        uses: dependabot/fetch-metadata@ffa630c65fa7e0ecfa0625b5ceda64399aea1b36
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
@@ -248,7 +248,7 @@ jobs:
       - name: Dependabot metadata
         if: steps.check-previous-attempts.outputs.should_run == 'true'
         id: dependabot-metadata
-        uses: dependabot/fetch-metadata@ffa630c65fa7e0ecfa0625b5ceda64399aea1b36
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
@@ -412,7 +412,7 @@ jobs:
     steps:
       - name: Dependabot metadata
         id: dependabot-metadata
-        uses: dependabot/fetch-metadata@ffa630c65fa7e0ecfa0625b5ceda64399aea1b36
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98
 
       - name: Enable auto-merge for Dependabot PRs
         if: ${{ steps.dependabot-metadata.outputs.maintainer-changes && (steps.dependabot-metadata.outputs.package-ecosystem == 'go_modules' || steps.dependabot-metadata.outputs.package-ecosystem == 'github_actions') }}
