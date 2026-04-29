@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -156,14 +155,14 @@ func (c *container) Exec(browser string, containerPort int) (string, context.Can
 }
 
 func port(ctx context.Context, container testcontainers.Container, host string, port int) (int, error) {
-	p, err := container.MappedPort(ctx, nat.Port(fmt.Sprintf("%d/tcp", port)))
+	p, err := container.MappedPort(ctx, fmt.Sprintf("%d/tcp", port))
 	if err != nil {
 		return 0, fmt.Errorf("could not get browser port: %w", err)
 	}
-	if err := Wait4Port(fmt.Sprintf("http://%s:%d", host, p.Int())); err != nil {
+	if err := Wait4Port(fmt.Sprintf("http://%s:%d", host, p.Num())); err != nil {
 		return 0, fmt.Errorf("timeout, could not connect to browser container: %w", err)
 	}
-	return p.Int(), nil
+	return int(p.Num()), nil
 }
 
 func noTagVersion(version string, verbose bool) (string, error) {
