@@ -284,6 +284,7 @@ jobs:
         uses: anthropics/claude-code-action@567fe954a4527e81f132d87d1bdbcc94f7737434
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: 'dependabot[bot]'
           claude_args: |
             --allowedTools 'Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(go:*),Bash(golangci-lint:*),Bash(gh:*)'
             --mcp-config '{"mcpServers": {"gopls": {"command": "gopls", "args": ["mcp"] }}}'
