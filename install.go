@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/containerd/errdefs"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 var pw *playwright.Playwright

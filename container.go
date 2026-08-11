@@ -291,7 +291,14 @@ func parseGoListJSONStream(output io.Reader, imageVersion string, verbose bool) 
 	}
 
 	version := ""
-	if mod, exists := modules["github.com/playwright-community/playwright-go"]; exists {
+	mod, exists := modules["github.com/mxschmitt/playwright-go"]
+	if !exists {
+		// playwright-go moved back to the mxschmitt org in v0.6100.0; a
+		// consumer still pinning the archived playwright-community path
+		// should keep resolving.
+		mod, exists = modules["github.com/playwright-community/playwright-go"]
+	}
+	if exists {
 		if verbose {
 			log.Println("Found playwright-go module:", mod.Path, "Version:", mod.Version)
 		}

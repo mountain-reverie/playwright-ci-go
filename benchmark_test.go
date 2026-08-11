@@ -11,7 +11,7 @@ import (
 	"time"
 
 	playwrightcigo "github.com/mountain-reverie/playwright-ci-go"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 func BenchmarkPageChromium(b *testing.B) {

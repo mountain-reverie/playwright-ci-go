@@ -41,9 +41,15 @@ jobs:
       - name: Playwright version
         id: playwright
         run: |
-          export PLAYWRIGHT_GO_VERSION=$(go list -m all | grep github.com/playwright-community/playwright-go | awk '{print $2}')
+          set -euo pipefail
+          PLAYWRIGHT_GO_VERSION=$(go list -m -f '{{.Version}}' github.com/mxschmitt/playwright-go)
+          PLAYWRIGHT_VERSION=$(go run ./internal/cmd/playwrightversion)
+          if [ -z "$PLAYWRIGHT_GO_VERSION" ] || [ -z "$PLAYWRIGHT_VERSION" ]; then
+            echo "could not determine playwright versions (go: '$PLAYWRIGHT_GO_VERSION', playwright: '$PLAYWRIGHT_VERSION')" >&2
+            exit 1
+          fi
           echo "playwright_go_version=$PLAYWRIGHT_GO_VERSION" >> "$GITHUB_OUTPUT"
-          echo "version="$(go run github.com/playwright-community/playwright-go/cmd/playwright@$PLAYWRIGHT_GO_VERSION --version |cut -d " " -f 2) >> "$GITHUB_OUTPUT"
+          echo "version=$PLAYWRIGHT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Get Next Version
         id: semver
