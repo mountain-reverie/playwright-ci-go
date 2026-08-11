@@ -52,7 +52,7 @@ func Install(opts ...Option) error {
 		return fmt.Errorf("error while starting to run playwright: %w", err)
 	}
 
-	browsers, err = new(driver.Version, opts...)
+	browsers, err = new(opts...)
 	if err != nil {
 		return err
 	}

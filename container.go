@@ -41,7 +41,7 @@ type module struct {
 	Main    bool
 }
 
-func new(version string, opts ...Option) (*container, error) {
+func new(opts ...Option) (*container, error) {
 	c := &config{
 		timeout:    5 * time.Minute,
 		sleeping:   200 * time.Millisecond,
@@ -56,7 +56,7 @@ func new(version string, opts ...Option) (*container, error) {
 	}
 
 	if c.tag == "" {
-		tag, err := noTagVersion(version, c.verbose)
+		tag, err := noTagVersion(c.verbose)
 		if err != nil {
 			return nil, err
 		}
@@ -165,25 +165,23 @@ func port(ctx context.Context, container testcontainers.Container, host string, 
 	return int(p.Num()), nil
 }
 
-func noTagVersion(version string, verbose bool) (string, error) {
-	splitted := strings.Split(version, ".")
-	if len(splitted) != 3 {
-		return "", fmt.Errorf("invalid version format: %s", version)
+// noTagVersion resolves which playwright-ci-go image to pull when the caller
+// did not pin one with WithRepository.
+//
+// Both strategies read versions the Go toolchain already knows, so neither
+// guesses. Build info covers consumers of this library; go list covers
+// development inside this repository, where the test binary carries no
+// dependency info.
+func noTagVersion(verbose bool) (string, error) {
+	if imageVersion, found := getPlaywrightCIGoFromBuildInfo(verbose); found {
+		return imageVersion, nil
 	}
 
-	imageVersion := fmt.Sprintf("v0.%s%02s.0", splitted[1], splitted[2])
-	if imageVersion == "v0.5101.0" {
-		// Workaround our CI having failed publishing this version
-		imageVersion = "v0.5101.1"
+	if imageVersion, found := getPlaywrightCIGoFromGoList(verbose); found {
+		return imageVersion, nil
 	}
 
-	found := false
-
-	found, imageVersion = getPlaywrightCIGoFromBuildInfo(imageVersion, verbose)
-	if !found {
-		_, imageVersion = getPlaywrightCIGoFromGoList(imageVersion, verbose)
-	}
-	return imageVersion, nil
+	return "", fmt.Errorf("could not determine which %s image to use: no version found in build info or go list; pass one explicitly with WithRepository", playwrightCIGoModule)
 }
 
 func filterVersion(version string) string {
@@ -195,63 +193,58 @@ func filterVersion(version string) string {
 	return version
 }
 
-func getPlaywrightCIGoGitVersion(imageVersion string, verbose bool) (bool, string) {
+func getPlaywrightCIGoGitVersion(verbose bool) (string, bool) {
 	cmd := exec.Command("git", "describe", "--tags")
 	output, err := cmd.Output()
 	if err != nil {
 		if verbose {
 			log.Printf("could not get git version: %v\n", err)
 		}
-		return false, imageVersion
+		return "", false
 	}
-	imageVersion = filterVersion(strings.TrimSpace(string(output)))
+	imageVersion := filterVersion(strings.TrimSpace(string(output)))
 	if verbose {
 		log.Println("Using version from git:", imageVersion)
 	}
-	return true, imageVersion
+	return imageVersion, true
 }
 
-func getPlaywrightCIGoFromBuildInfo(imageVersion string, verbose bool) (bool, string) {
-	if info, ok := debug.ReadBuildInfo(); !ok {
-		for _, deps := range info.Deps {
-			if strings.Contains(deps.Path, "github.com/mountain-reverie/playwright-ci-go") {
-				if len(deps.Version) > 0 && deps.Version[0] == 'v' {
-					if verbose {
-						log.Println("Using version from build info:", deps.Version)
-					}
-					return true, deps.Version
-				}
-			}
+func getPlaywrightCIGoFromBuildInfo(verbose bool) (string, bool) {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		if verbose {
+			log.Println("no build info available")
 		}
+		return "", false
 	}
 
-	return false, imageVersion
+	return versionFromBuildInfo(info, verbose)
 }
 
-func getPlaywrightCIGoFromGoList(imageVersion string, verbose bool) (bool, string) {
+func getPlaywrightCIGoFromGoList(verbose bool) (string, bool) {
 	cmd := exec.Command("go", "list", "-json", "-m", "all")
 	output, err := cmd.StdoutPipe()
 	if err != nil {
 		if verbose {
 			log.Printf("could not get stdout pipe: %v\n", err)
 		}
-		return false, imageVersion
+		return "", false
 	}
 
 	if err := cmd.Start(); err != nil {
 		if verbose {
 			log.Printf("could not start command: %v\n", err)
 		}
-		return false, imageVersion
+		return "", false
 	}
 	defer func() {
 		_ = cmd.Wait()
 	}()
 
-	return parseGoListJSONStream(output, imageVersion, verbose)
+	return parseGoListJSONStream(output, verbose)
 }
 
-func parseGoListJSONStream(output io.Reader, imageVersion string, verbose bool) (bool, string) {
+func parseGoListJSONStream(output io.Reader, verbose bool) (string, bool) {
 	decoder := json.NewDecoder(output)
 
 	defer func() {
@@ -272,7 +265,7 @@ func parseGoListJSONStream(output io.Reader, imageVersion string, verbose bool) 
 			if verbose {
 				log.Printf("could not decode module: %v\n", err)
 			}
-			return false, imageVersion
+			return "", false
 		}
 
 		if !strings.Contains(mod.Path, "playwright") {
@@ -290,68 +283,60 @@ func parseGoListJSONStream(output io.Reader, imageVersion string, verbose bool) 
 		modules[mod.Path] = mod
 	}
 
-	version := ""
-	mod, exists := modules["github.com/mxschmitt/playwright-go"]
+	// The release line implied by playwright-go, used whenever we cannot read
+	// a published playwright-ci-go version directly.
+	line := ""
+	mod, exists := modules[playwrightGoModule]
 	if !exists {
 		// playwright-go moved back to the mxschmitt org in v0.6100.0; a
 		// consumer still pinning the archived playwright-community path
 		// should keep resolving.
-		mod, exists = modules["github.com/playwright-community/playwright-go"]
+		mod, exists = modules[playwrightGoArchivedModule]
 	}
 	if exists {
 		if verbose {
 			log.Println("Found playwright-go module:", mod.Path, "Version:", mod.Version)
 		}
-		if len(mod.Version) > 0 && mod.Version[0] == 'v' {
-			if verbose {
-				log.Println("Found playwright-go version:", mod.Version)
-			}
-			version = mod.Version
+		if tag, ok := playwrightGoTagLine(mod.Version); ok {
+			line = tag
 		}
 	}
 
-	if mod, exists := modules["github.com/mountain-reverie/playwright-ci-go"]; exists {
+	if mod, exists := modules[playwrightCIGoModule]; exists {
 		if verbose {
 			log.Println("Found playwright-ci-go module:", mod.Path, "Version:", mod.Version)
 		}
 
+		// Developing in this repository: there is no published version of
+		// ourselves to use, so fall back to the line, then to the git tag.
 		if mod.Main {
-			if version != "" {
-				if verbose {
-					log.Println("Using version from playwright-go module:", version)
-				}
-				return true, version
+			if line != "" {
+				return line, true
 			}
-			return getPlaywrightCIGoGitVersion(imageVersion, verbose)
-		} else if len(mod.Version) > 0 && mod.Version[0] == 'v' {
+			return getPlaywrightCIGoGitVersion(verbose)
+		}
+
+		if len(mod.Version) > 0 && mod.Version[0] == 'v' {
 			if verbose {
 				log.Println("Using version from go list:", mod.Version)
 			}
-			return true, mod.Version
-		} else {
-			if verbose {
-				log.Println("No version found in go list for playwright-ci-go module")
-			}
-			if version != "" {
-				if verbose {
-					log.Println("Using version from playwright-go module:", version)
-				}
-				return false, version
-			} else {
-				return false, imageVersion
-			}
+			return mod.Version, true
+		}
+
+		if verbose {
+			log.Println("No version found in go list for playwright-ci-go module")
 		}
 	}
 
-	if version != "" {
+	if line != "" {
 		if verbose {
-			log.Println("Using version from playwright-go module:", version)
+			log.Println("Using release line from playwright-go module:", line)
 		}
-		return false, version
+		return line, true
 	}
 
 	if verbose {
-		log.Println("No build, module or git info found. Keeping version as:", imageVersion)
+		log.Println("No build, module or git info found")
 	}
-	return false, imageVersion
+	return "", false
 }
