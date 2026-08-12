@@ -12,9 +12,9 @@ func Test_parseGoListJSONStreamEmpty(t *testing.T) {
 
 	jsonStream := ``
 
-	found, result := parseGoListJSONStream(strings.NewReader(jsonStream), "none", true)
+	result, found := parseGoListJSONStream(strings.NewReader(jsonStream), true)
 	assert.False(t, found)
-	assert.Equal(t, "none", result)
+	assert.Empty(t, result)
 }
 
 func Test_parseGoListJSONStreamNoPlaywrightCIGo(t *testing.T) {
@@ -25,9 +25,9 @@ func Test_parseGoListJSONStreamNoPlaywrightCIGo(t *testing.T) {
 	{"Path":"github.com/another/package","Version":"v2.0.0","Main":true}
 	`
 
-	found, result := parseGoListJSONStream(strings.NewReader(jsonStream), "none", true)
+	result, found := parseGoListJSONStream(strings.NewReader(jsonStream), true)
 	assert.False(t, found)
-	assert.Equal(t, "none", result)
+	assert.Empty(t, result)
 }
 
 func Test_parseGoListJSONStreamPlaywrightCIGoMain(t *testing.T) {
@@ -38,7 +38,7 @@ func Test_parseGoListJSONStreamPlaywrightCIGoMain(t *testing.T) {
 	`
 
 	// As this call `git` if the command fail, it is possible that the result is not found
-	_, result := parseGoListJSONStream(strings.NewReader(jsonStream), "none", true)
+	result, _ := parseGoListJSONStream(strings.NewReader(jsonStream), true)
 	assert.NotEqual(t, "v1.0.0", result)
 }
 
@@ -49,7 +49,7 @@ func Test_parseGoListJSONStreamPlaywrightCIGoNotMain(t *testing.T) {
 	{"Path":"github.com/mountain-reverie/playwright-ci-go","Version":"v1.0.0","Main":false}
 	`
 
-	found, result := parseGoListJSONStream(strings.NewReader(jsonStream), "none", true)
+	result, found := parseGoListJSONStream(strings.NewReader(jsonStream), true)
 	assert.True(t, found)
 	assert.Equal(t, "v1.0.0", result)
 }
@@ -61,9 +61,9 @@ func Test_parseGoListJSONStreamPlaywrightCIGoNoVersion(t *testing.T) {
 	{"Path":"github.com/mountain-reverie/playwright-ci-go","Version":"","Main":false}
 	`
 
-	found, result := parseGoListJSONStream(strings.NewReader(jsonStream), "none", true)
+	result, found := parseGoListJSONStream(strings.NewReader(jsonStream), true)
 	assert.False(t, found)
-	assert.Equal(t, "none", result)
+	assert.Empty(t, result)
 }
 
 func Test_parseGoListJSONStreamInvalidStream(t *testing.T) {
@@ -74,25 +74,26 @@ func Test_parseGoListJSONStreamInvalidStream(t *testing.T) {
 	{"Path":"github.com/mountain-reverie/playwright-ci-go","Version":"v1.0.0","Main":false}
 	`
 
-	found, result := parseGoListJSONStream(strings.NewReader(jsonStream), "none", true)
+	result, found := parseGoListJSONStream(strings.NewReader(jsonStream), true)
 	assert.False(t, found)
-	assert.Equal(t, "none", result)
+	assert.Empty(t, result)
 }
 
 func Test_BuildInfoPath(t *testing.T) {
 	t.Parallel()
 
-	ok, version := getPlaywrightCIGoFromBuildInfo("none", true)
+	// A test binary of the main module carries no dependency info, so this
+	// resolves nothing here. Consumers of the library do have it, which
+	// TestVersionFromBuildInfo covers against a synthetic BuildInfo.
+	_, ok := getPlaywrightCIGoFromBuildInfo(true)
 	assert.False(t, ok)
-	assert.Equal(t, "none", version)
 }
 
 func Test_GoListInfo(t *testing.T) {
 	t.Parallel()
 
-	ok, version := getPlaywrightCIGoFromGoList("none", true)
+	version, ok := getPlaywrightCIGoFromGoList(true)
 	assert.True(t, ok)
-	assert.NotEqual(t, "none", version)
 	assert.NotEmpty(t, version)
 	assert.Greater(t, len(version), 3)
 	assert.Equal(t, "v0.", version[:3])
@@ -101,9 +102,8 @@ func Test_GoListInfo(t *testing.T) {
 func Test_NoTag(t *testing.T) {
 	t.Parallel()
 
-	tag, err := noTagVersion("0.51.01", true)
+	tag, err := noTagVersion(true)
 	assert.NoError(t, err)
-	assert.NotEqual(t, "v0.5101.0", tag)
 	assert.Greater(t, len(tag), 3)
 	assert.Equal(t, "v0.", tag[:3])
 }

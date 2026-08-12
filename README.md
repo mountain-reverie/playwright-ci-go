@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://github.com/mountain-reverie/playwright-ci-go/actions/workflows/main.yml/badge.svg)](https://github.com/mountain-reverie/playwright-ci-go/actions)
 
-Reproducible browser testing with [Playwright for Go](https://github.com/playwright-community/playwright-go) using containerization for consistent CI environments.
+Reproducible browser testing with [Playwright for Go](https://github.com/mxschmitt/playwright-go) using containerization for consistent CI environments.
 
 This package enables you to run Playwright browser tests in Go with predictable behavior across different CI/CD platforms by leveraging containers.
 

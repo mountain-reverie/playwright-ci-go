@@ -58,7 +58,7 @@ The library uses Docker containers with:
 
 ### Dependencies
 
-- `github.com/playwright-community/playwright-go` - Core Playwright Go bindings
+- `github.com/mxschmitt/playwright-go` - Core Playwright Go bindings
 - `github.com/testcontainers/testcontainers-go` - Container management
 - `github.com/docker/go-connections` - Docker networking utilities
 - `github.com/elazarl/goproxy` - HTTP proxy implementation

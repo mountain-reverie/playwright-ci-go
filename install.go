@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/containerd/errdefs"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 var pw *playwright.Playwright
@@ -52,7 +52,7 @@ func Install(opts ...Option) error {
 		return fmt.Errorf("error while starting to run playwright: %w", err)
 	}
 
-	browsers, err = new(driver.Version, opts...)
+	browsers, err = new(opts...)
 	if err != nil {
 		return err
 	}

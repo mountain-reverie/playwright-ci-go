@@ -40,7 +40,7 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Download failed test artifacts
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/mxschmitt/playwright-go')
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: "Failed tests on amd64"
@@ -48,7 +48,7 @@ jobs:
 
       - name: Handle Dependabot Playwright Go test failures
         id: handle-dependabot-failures
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/mxschmitt/playwright-go')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -125,7 +125,7 @@ jobs:
 
       # Thanks https://github.com/stefanzweifel/git-auto-commit-action/discussions/334
       - name: "Import GPG key"
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/mxschmitt/playwright-go')
         id: import-gpg
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
         with:
@@ -136,7 +136,7 @@ jobs:
 
       - name: "Commit and push changes"
         id: commit-screenshots
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go')
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/mxschmitt/playwright-go')
         env:
           TOKEN: ${{ secrets.DEPENDABOT_PAT }}
         run: |
@@ -155,7 +155,7 @@ jobs:
           fi
 
       - name: Find existing screenshot comment
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/mxschmitt/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
         id: find-comment
         uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad
         with:
@@ -165,7 +165,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create comment body
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/mxschmitt/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
         env:
           COMMIT_SHA: ${{ steps.commit-screenshots.outputs.commit_hash }}
         run: |
@@ -193,7 +193,7 @@ jobs:
           echo "Commit: https://github.com/mountain-reverie/playwright-ci-go/commit/$COMMIT_SHA" >> comment.md
 
       - name: Create or update comment on PR with updated screenshots
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/mxschmitt/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9
         with:
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
@@ -203,7 +203,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add breaking label to PR
-        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/playwright-community/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
+        if: contains(steps.dependabot-metadata.outputs.dependency-names, 'github.com/mxschmitt/playwright-go') && steps.commit-screenshots.outputs.changes_detected == 'true' && steps.commit-screenshots.outputs.commit_hash != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
