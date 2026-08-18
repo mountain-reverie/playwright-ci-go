@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/elazarl/goproxy v1.9.0
-	github.com/mxschmitt/playwright-go v0.6100.0
+	github.com/mxschmitt/playwright-go v0.6201.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.44.0
 )
